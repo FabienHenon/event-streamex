@@ -142,7 +142,7 @@ defmodule EventStreamex.Events do
       extra_channels
       |> Enum.each(fn %{scopes: [_ | _] = scopes} ->
         Logger.debug(
-          "#{table_name} broacasted in channel: #{scopes |> Enum.map(&"#{elem(&1, 1)}/#{Map.get(used_record, elem(&1, 0))}") |> Enum.join("/")}/#{table_name}"
+          "#{table_name} broadcasted in channel: #{scopes |> Enum.map(&"#{elem(&1, 1)}/#{Map.get(used_record, elem(&1, 0))}") |> Enum.join("/")}/#{table_name}"
         )
 
         # Scoped channels are in the form : "parent_entities/123/entities"
