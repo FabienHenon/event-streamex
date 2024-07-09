@@ -17,10 +17,14 @@ defmodule EventStreamex.MixProject do
       extra_applications: [:logger],
       mod: {EventStreamex.Application, []},
       env: [
+        app_name: nil,
         database: "postgres",
         durable_slot: false,
         hostname: "localhost",
-        name: nil,
+        operator_queue_backoff_multiplicator: 2,
+        operator_queue_max_restart_time: 10000,
+        operator_queue_max_retries: 5,
+        operator_queue_min_restart_time: 500,
         password: "postgres",
         port: "5432",
         publication: "events",
@@ -35,6 +39,7 @@ defmodule EventStreamex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:uuid, "~> 1.1"},
       {:walex, path: "../walex"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
       # {:walex, "~> 4.0.0"}

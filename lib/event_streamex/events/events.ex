@@ -8,9 +8,12 @@ defmodule EventStreamex.Events do
   defmacro __using__(opts) do
     module_name = String.to_atom(Keyword.get(opts, :module_name, "Events"))
     table_name = String.to_atom(Keyword.get(opts, :schema, "events"))
-    table_name_str = Keyword.get(opts, :schema, "events")
+    table_name_str = Keyword.get(opts, :schema, nil)
     app_name = Keyword.get(opts, :name, nil)
     extra_channels = Keyword.get(opts, :extra_channels, [])
+
+    if(is_nil(table_name_str), do: raise("schema attribute not set in EventStreamex.Events"))
+    if(is_nil(app_name), do: raise("name attribute not set in EventStreamex.Events"))
 
     quote do
       Module.register_attribute(
@@ -58,6 +61,9 @@ defmodule EventStreamex.Events do
           fn items ->
             Logger.debug("#{unquote(table_name)} inserted: #{inspect(items)}")
 
+            items
+            |> Enum.each(&EventStreamex.Operators.Scheduler.process_event(&1))
+
             EventStreamex.Events.handle_events_broadcast(
               items,
               :on_insert,
@@ -75,6 +81,9 @@ defmodule EventStreamex.Events do
           fn items ->
             Logger.debug("#{unquote(table_name)} updated: #{inspect(items)}")
 
+            items
+            |> Enum.each(&EventStreamex.Operators.Scheduler.process_event(&1))
+
             EventStreamex.Events.handle_events_broadcast(
               items,
               :on_update,
@@ -91,6 +100,9 @@ defmodule EventStreamex.Events do
           [],
           fn items ->
             Logger.debug("#{unquote(table_name)} deleted: #{inspect(items)}")
+
+            items
+            |> Enum.each(&EventStreamex.Operators.Scheduler.process_event(&1))
 
             EventStreamex.Events.handle_events_broadcast(
               items,
