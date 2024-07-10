@@ -50,7 +50,7 @@ defmodule EventStreamex.Operators.Operator do
       @sql_adapter unquote(sql_adapter)
       @id_field unquote(id_field)
       @schema unquote(schema)
-      @id_type :integer
+      @id_type :uuid
 
       def start(arg) do
         GenServer.start(__MODULE__, arg, name: __MODULE__)

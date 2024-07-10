@@ -29,6 +29,7 @@ defmodule EventStreamex.MixProject do
         port: "5432",
         publication: "events",
         pubsub: [adapter: Phoenix.PubSub, name: nil],
+        queue_storage_adapter: {EventStreamex.Operators.Queue.MemAdapter, []},
         slot_name: "postgres_slot",
         url: "",
         username: "postgres"
@@ -39,6 +40,7 @@ defmodule EventStreamex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:jason, "~> 1.4"},
       {:uuid, "~> 1.1"},
       {:walex, path: "../walex"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}

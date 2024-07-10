@@ -44,7 +44,7 @@ defmodule EventStreamex.Utils.DbSetup do
     {:ok, :ok}
   end
 
-  defp connect_db(opts) do
+  def connect_db(opts) do
     db_configs_from_url =
       opts
       |> Keyword.get(:url, "")
