@@ -7,8 +7,13 @@ defmodule EventStreamex.Operators.Queue.MemAdapter do
   end
 
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
-  def save_queue(queue) do
-    GenServer.call(__MODULE__, {:save, queue})
+  def add_item(item) do
+    GenServer.call(__MODULE__, {:save, item})
+  end
+
+  @impl EventStreamex.Operators.Queue.QueueStorageAdapter
+  def delete_item(item) do
+    GenServer.call(__MODULE__, {:delete, item})
   end
 
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
@@ -24,7 +29,19 @@ defmodule EventStreamex.Operators.Queue.MemAdapter do
   end
 
   @impl true
-  def handle_call({:save, queue}, _from, _state) do
+  def handle_call({:save, item}, _from, queue) do
+    new_queue = queue ++ [item]
+    {:reply, {:ok, new_queue}, new_queue}
+  end
+
+  @impl true
+  def handle_call({:delete, {id, _item}}, _from, queue) do
+    new_queue = queue |> Enum.reject(fn {i, _t} -> i == id end)
+    {:reply, {:ok, new_queue}, new_queue}
+  end
+
+  @impl true
+  def handle_call({_action, nil}, _from, queue) do
     {:reply, {:ok, queue}, queue}
   end
 

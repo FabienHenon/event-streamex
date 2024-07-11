@@ -13,8 +13,13 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
   end
 
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
-  def save_queue(queue) do
-    GenServer.call(__MODULE__, {:save, queue})
+  def add_item(item) do
+    GenServer.call(__MODULE__, {:save, item})
+  end
+
+  @impl EventStreamex.Operators.Queue.QueueStorageAdapter
+  def delete_item(item) do
+    GenServer.call(__MODULE__, {:delete, item})
   end
 
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
@@ -30,8 +35,22 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         pid,
         """
         CREATE TABLE IF NOT EXISTS #{table_name} (
-          id integer NOT NULL PRIMARY KEY,
-          queue jsonb
+          id              UUID NOT NULL PRIMARY KEY,
+          module          VARCHAR(255) NOT NULL,
+          name            VARCHAR(255) NOT NULL,
+          type            VARCHAR(255) NOT NULL,
+          source_name     VARCHAR(255) NOT NULL,
+          source_version  VARCHAR(255) NOT NULL,
+          source_db       VARCHAR(255) NOT NULL,
+          source_schema   VARCHAR(255) NOT NULL,
+          source_table    VARCHAR(255) NOT NULL,
+          source_columns  JSONB NOT NULL,
+          new_record      JSONB,
+          old_record      JSONB,
+          changes         JSONB,
+          timestamp       TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
+          lsn             VARCHAR(255) NOT NULL,
+          inserted_at     TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL
         )
         """,
         []
@@ -42,50 +61,48 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     {:ok, pid}
   end
 
-  defp encode(queue) when is_list(queue) do
-    queue |> Enum.map(&encode/1)
-  end
-
-  defp encode({module, event}) do
-    %__MODULE__{
-      module: module,
-      event:
-        Map.update(event, :lsn, nil, fn {i1, i2} ->
-          "#{Integer.to_string(i1, 16)}/#{Integer.to_string(i2, 16)}"
-        end)
-    }
-  end
-
-  def decode(queue) when is_list(queue) do
-    queue |> Enum.map(&decode/1)
+  defp encode_lsn({low, high}) do
+    "#{Integer.to_string(low, 16)}/#{Integer.to_string(high, 16)}"
   end
 
   def decode(%{
+        "id" => id,
         "module" => module,
-        "event" => %{
-          "name" => name,
-          "type" => type,
-          "source" => source,
-          "new_record" => new_record,
-          "old_record" => old_record,
-          "changes" => changes,
-          "timestamp" => timestamp,
-          "lsn" => lsn
-        }
+        "name" => name,
+        "type" => type,
+        "source_name" => source_name,
+        "source_version" => source_version,
+        "source_db" => source_db,
+        "source_schema" => source_schema,
+        "source_table" => source_table,
+        "source_columns" => source_columns,
+        "new_record" => new_record,
+        "old_record" => old_record,
+        "changes" => changes,
+        "timestamp" => timestamp,
+        "lsn" => lsn
       }) do
-    new_source = decode_source(source)
+    columns = decode_struct_keys(source_columns)
 
-    {String.to_existing_atom(module),
-     %WalEx.Event{
-       name: String.to_atom(name),
-       type: String.to_atom(type),
-       source: new_source,
-       new_record: new_record |> decode_struct_keys() |> cast_record(new_source.columns),
-       old_record: old_record |> decode_struct_keys() |> cast_record(new_source.columns),
-       changes: decode_struct_keys(changes) |> cast_changes(new_source.columns),
-       timestamp: DateTime.from_iso8601(timestamp) |> elem(1),
-       lsn: lsn |> String.split("/") |> decode_lsn()
-     }}
+    {id |> UUID.binary_to_string!(),
+     {String.to_existing_atom(module),
+      %WalEx.Event{
+        name: String.to_atom(name),
+        type: String.to_atom(type),
+        source: %WalEx.Event.Source{
+          name: source_name,
+          version: source_version,
+          db: source_db,
+          schema: source_schema,
+          table: source_table,
+          columns: columns
+        },
+        new_record: new_record |> decode_struct_keys() |> cast_record(columns),
+        old_record: old_record |> decode_struct_keys() |> cast_record(columns),
+        changes: decode_struct_keys(changes) |> cast_changes(columns),
+        timestamp: Timex.to_datetime(timestamp),
+        lsn: lsn |> String.split("/") |> decode_lsn()
+      }}}
   end
 
   defp decode_lsn([i1 | [i2 | _res]]),
@@ -101,26 +118,6 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
       |> Map.new()
 
   defp decode_struct_keys(v), do: v
-
-  defp decode_source(nil), do: nil
-
-  defp decode_source(%{
-         "version" => version,
-         "db" => db,
-         "schema" => schema,
-         "table" => table,
-         "columns" => columns,
-         "name" => name
-       }) do
-    %WalEx.Event.Source{
-      name: name,
-      version: version,
-      db: db,
-      schema: schema,
-      table: table,
-      columns: decode_struct_keys(columns)
-    }
-  end
 
   defp cast_changes(nil, _columns), do: nil
 
@@ -177,7 +174,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
   @impl true
   def handle_call(
-        {:save, queue},
+        {:save, {id, {module, item}}},
         _from,
         %{table_name: table_name, pid: pid} = state
       ) do
@@ -185,18 +182,97 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
       Postgrex.query(
         pid,
         """
-        INSERT INTO #{table_name} (id, queue)
-         VALUES (1, $1)
-        ON CONFLICT(id)
-        DO UPDATE SET
-         queue = EXCLUDED.queue
+        INSERT INTO #{table_name}
+          (
+            id,
+            module,
+            name,
+            type,
+            source_name,
+            source_version,
+            source_db,
+            source_schema,
+            source_table,
+            source_columns,
+            new_record,
+            old_record,
+            changes,
+            timestamp,
+            lsn,
+            inserted_at
+          )
+        VALUES
+          (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            $9,
+            $10,
+            $11,
+            $12,
+            $13,
+            $14,
+            $15,
+            NOW()
+          )
         """,
-        [queue |> encode()]
+        [
+          id |> UUID.string_to_binary!(),
+          module |> Atom.to_string(),
+          item.name |> Atom.to_string(),
+          item.type |> Atom.to_string(),
+          item.source.name,
+          item.source.version,
+          item.source.db,
+          item.source.schema,
+          item.source.table,
+          item.source.columns,
+          item.new_record,
+          item.old_record,
+          item.changes,
+          item.timestamp,
+          item.lsn |> encode_lsn()
+        ]
       )
 
-    Logger.debug("Saved queue with result #{inspect(res)}")
+    Logger.debug("Added item with result #{inspect(res)}")
 
     {:reply, res, state}
+  end
+
+  @impl true
+  def handle_call(
+        {:delete, {id, {_module, _item}}},
+        _from,
+        %{table_name: table_name, pid: pid} = state
+      ) do
+    res =
+      Postgrex.query(
+        pid,
+        """
+        DELETE FROM #{table_name}
+        WHERE id = $1
+        """,
+        [id |> UUID.string_to_binary!()]
+      )
+
+    Logger.debug("Deleted item with result #{inspect(res)}")
+
+    {:reply, res, state}
+  end
+
+  @impl true
+  def handle_call(
+        {_action, nil},
+        _from,
+        state
+      ) do
+    {:reply, {:ok, :ok}, state}
   end
 
   @impl true
@@ -205,14 +281,28 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         _from,
         %{table_name: table_name, pid: pid} = state
       ) do
-    # %Postgrex.Result{command: :select, columns: ["queue"], rows: [], num_rows: 0, connection_id: 50207, messages: []}
     {:ok, res} =
       Postgrex.query(
         pid,
         """
-        SELECT queue
+        SELECT
+          id,
+          module,
+          name,
+          type,
+          source_name,
+          source_version,
+          source_db,
+          source_schema,
+          source_table,
+          source_columns,
+          new_record,
+          old_record,
+          changes,
+          timestamp,
+          lsn
         FROM #{table_name}
-        LIMIT 1
+        ORDER BY inserted_at ASC
         """,
         []
       )
@@ -223,9 +313,17 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
         {:reply, {:ok, []}, state}
 
-      %Postgrex.Result{rows: [[raw_queue | _cols] | _rows], num_rows: num_rows}
+      %Postgrex.Result{rows: rows, columns: columns, num_rows: num_rows}
       when num_rows > 0 ->
-        queue = decode(raw_queue)
+        queue =
+          rows
+          |> Enum.map(fn cols ->
+            columns
+            |> Enum.zip(cols)
+            |> Map.new()
+            |> decode()
+          end)
+
         Logger.debug("Queue retrieved with queue #{inspect(queue)}")
 
         {:reply, {:ok, queue}, state}

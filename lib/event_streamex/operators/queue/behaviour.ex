@@ -1,7 +1,10 @@
 defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
-  @type queue() :: any()
+  @type queue_item() :: {atom(), WalEx.Event.t()} | nil
+  @type queue() :: [queue_item()]
 
-  @callback save_queue(queue()) :: {:ok, term()} | {:error, term()}
+  @callback add_item(queue_item()) :: {:ok, term()} | {:error, term()}
+
+  @callback delete_item(queue_item()) :: {:ok, term()} | {:error, term()}
 
   @callback load_queue() :: {:ok, queue()} | {:error, term()}
 
@@ -11,8 +14,12 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def save_queue(queue) do
-    GenServer.call(__MODULE__, {:save, queue})
+  def add_item(item) do
+    GenServer.call(__MODULE__, {:save, item})
+  end
+
+  def delete_item(item) do
+    GenServer.call(__MODULE__, {:delete, item})
   end
 
   def load_queue() do
@@ -22,14 +29,20 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   # Callbacks
 
   @impl true
+  @spec init({atom(), any()}) :: {:ok, atom()}
   def init({queue_storage_adapter, args}) do
     {:ok, _pid} = queue_storage_adapter.start_link(args)
     {:ok, queue_storage_adapter}
   end
 
   @impl true
-  def handle_call({:save, queue}, _from, queue_storage_adapter) do
-    {:reply, queue_storage_adapter.save_queue(queue), queue_storage_adapter}
+  def handle_call({:save, item}, _from, queue_storage_adapter) do
+    {:reply, queue_storage_adapter.add_item(item), queue_storage_adapter}
+  end
+
+  @impl true
+  def handle_call({:delete, item}, _from, queue_storage_adapter) do
+    {:reply, queue_storage_adapter.delete_item(item), queue_storage_adapter}
   end
 
   @impl true

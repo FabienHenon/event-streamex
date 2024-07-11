@@ -13,26 +13,29 @@ defmodule EventStreamex.Operators.Queue do
   end
 
   def get_task do
-    Agent.get(__MODULE__, &List.first(Enum.reverse(&1)))
+    Agent.get(__MODULE__, &(List.first(&1) |> get_value()))
   end
 
   def get_queue do
-    Agent.get(__MODULE__, &Enum.reverse(&1))
+    Agent.get(__MODULE__, & &1)
   end
 
   def enqueue(module, event) do
     Agent.update(__MODULE__, fn queue ->
-      new_queue = [{module, event} | queue]
-      {:ok, _res} = QueueStorageAdapter.save_queue(new_queue)
-      new_queue
+      new_item = {UUID.uuid4(), {module, event}}
+      {:ok, _res} = QueueStorageAdapter.add_item(new_item)
+      queue ++ [new_item]
     end)
   end
 
   def task_finished() do
     Agent.update(__MODULE__, fn queue ->
-      new_queue = Enum.drop(queue, -1)
-      {:ok, _res} = QueueStorageAdapter.save_queue(new_queue)
+      {item, new_queue} = Enum.split(queue, 1)
+      {:ok, _res} = QueueStorageAdapter.delete_item(item |> List.first())
       new_queue
     end)
   end
+
+  defp get_value(nil), do: nil
+  defp get_value({_id, item}), do: item
 end
