@@ -1,6 +1,7 @@
 defmodule EventStreamex.Operators.Executor do
   use GenServer
   require Logger
+  alias EventStreamex.Operators.Logger.ErrorLoggerAdapter
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -58,10 +59,13 @@ defmodule EventStreamex.Operators.Executor do
         %{monitor_ref: ref, curr_retries: curr_retries, max_retries: max_retries} = state
       )
       when curr_retries < max_retries do
-    # TODO : log the error
-    Logger.error(
-      "Operator #{inspect(state.module)} failed with reason #{inspect(reason)}. Restarting for #{inspect(state.curr_retries + 1)}/#{inspect(state.max_retries)} times, in #{inspect(state.curr_time_to_wait)} ms..."
-    )
+    ErrorLoggerAdapter.log_retry(state.module, reason, %{
+      max_retries: state.max_retries,
+      curr_retries: state.curr_retries,
+      max_restart_time: state.max_restart_time,
+      backoff_multiplicator: state.backoff_multiplicator,
+      curr_time_to_wait: state.curr_time_to_wait
+    })
 
     Process.send_after(self(), :restart, state.curr_time_to_wait)
 
@@ -81,10 +85,13 @@ defmodule EventStreamex.Operators.Executor do
 
   @impl true
   def handle_info({:DOWN, ref, :process, _object, reason}, %{monitor_ref: ref} = state) do
-    # TOOD final error, eveything must stop
-    Logger.critical(
-      "Operator #{inspect(state.module)} failed with reason #{inspect(reason)}. Restarted too many times, terminating..."
-    )
+    ErrorLoggerAdapter.log_failed(state.module, reason, %{
+      max_retries: state.max_retries,
+      curr_retries: state.curr_retries,
+      max_restart_time: state.max_restart_time,
+      backoff_multiplicator: state.backoff_multiplicator,
+      curr_time_to_wait: state.curr_time_to_wait
+    })
 
     {:stop, :job_failed, state}
   end

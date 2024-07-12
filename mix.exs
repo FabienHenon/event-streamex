@@ -20,6 +20,7 @@ defmodule EventStreamex.MixProject do
         app_name: nil,
         database: "postgres",
         durable_slot: false,
+        error_logger_adapter: {EventStreamex.Operators.Logger.LoggerAdapter, []},
         hostname: "localhost",
         operator_queue_backoff_multiplicator: 2,
         operator_queue_max_restart_time: 10000,

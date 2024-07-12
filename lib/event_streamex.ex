@@ -12,6 +12,12 @@ defmodule EventStreamex do
 
     children = [
       {WalEx.Supervisor, get_walex_config()},
+      {EventStreamex.Operators.Logger.ErrorLoggerAdapter,
+       Application.get_env(
+         :event_streamex,
+         :error_logger_adapter,
+         {EventStreamex.Operators.Logger.LoggerAdapter, []}
+       )},
       {EventStreamex.Operators.Queue.QueueStorageAdapter,
        Application.get_env(
          :event_streamex,
