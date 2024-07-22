@@ -8,8 +8,7 @@ defmodule EventStreamex.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Starts a worker by calling: EventStreamex.Worker.start_link(arg)
-      EventStreamex
+      {EventStreamex.Orchestrator, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
