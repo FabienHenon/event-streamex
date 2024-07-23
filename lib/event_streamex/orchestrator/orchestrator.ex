@@ -1,6 +1,7 @@
 defmodule EventStreamex.Orchestrator do
   use GenServer
   import Bitwise
+  require Logger
 
   @bits_offset 4
 
@@ -66,12 +67,10 @@ defmodule EventStreamex.Orchestrator do
   defp broadcast_state(
          %__MODULE__{
            nodes: nodes,
-           master: master,
-           unique_identifier: unique_identifier
+           master: _master,
+           unique_identifier: _unique_identifier
          } = state
        ) do
-    IO.inspect({:set_state, master == node(), unique_identifier}, label: "BROADCASTING STATE")
-
     broadcast(
       [node() | nodes],
       {:set_state, node(), build_node_state(state)}
@@ -84,7 +83,6 @@ defmodule EventStreamex.Orchestrator do
 
   defp select_best_master_node(nodes_state) do
     nodes_state
-    |> IO.inspect(label: "UNIQUE IDENTIFIERS")
     |> Enum.reduce(nil, fn
       {node, %NodeState{unique_identifier: unique_identifier}}, nil ->
         {node, unique_identifier}
@@ -123,10 +121,10 @@ defmodule EventStreamex.Orchestrator do
     :ok = :net_kernel.monitor_nodes(true)
 
     unique_identifier =
-      IO.inspect(System.os_time(:nanosecond) <<< @bits_offset, label: "TIME") +
-        IO.inspect(:rand.uniform(1 <<< @bits_offset) - 1, label: "RAND")
+      (System.os_time(:nanosecond) <<< @bits_offset) +
+        (:rand.uniform(1 <<< @bits_offset) - 1)
 
-    IO.inspect({node(), unique_identifier, Node.list()}, label: "Nodes: ")
+    Logger.debug("Orchestrator initializing: #{inspect(node())}, #{unique_identifier}")
 
     nodes = Node.list()
 
@@ -154,7 +152,7 @@ defmodule EventStreamex.Orchestrator do
 
   @impl true
   def handle_info({:nodeup, node}, state) do
-    IO.inspect({node, {node(), Node.list()}}, label: "New node connected")
+    Logger.debug("Orchestrator - New node connected: #{inspect({node, {node(), Node.list()}})}")
 
     # Sending our node state to the newly connected node
     send_message(node, {:set_state, node(), build_node_state(state)})
@@ -167,11 +165,9 @@ defmodule EventStreamex.Orchestrator do
 
   @impl true
   def handle_info({:nodedown, node}, state) do
-    IO.inspect({node, {node(), Node.list()}}, label: "Node disconnected")
+    Logger.debug("Orchestrator - Node disconnected: #{inspect({node, {node(), Node.list()}})}")
 
     elect_master()
-
-    IO.inspect("ELECTION DONE")
 
     {:noreply,
      %__MODULE__{
@@ -184,36 +180,41 @@ defmodule EventStreamex.Orchestrator do
   @impl true
   def handle_info(:elect_master, %__MODULE__{nodes: nodes, nodes_state: nodes_state} = state) do
     total_nodes = [node() | nodes]
-    IO.inspect(total_nodes, label: "STARTING ELECTION BETWEEN NODES")
 
     if all_nodes_states_known?(nodes_state) do
-      case whois_master?(nodes_state) |> IO.inspect(label: "WHOIS MASTER") do
+      case whois_master?(nodes_state) do
         [] ->
           # There is no master, we select the best one
           master_node =
             nodes_state
             |> select_best_master_node()
-            |> IO.inspect(label: "BEST MASTER SELECTED (no previous master)")
+
+          Logger.info(
+            "Orchestrator - New master elected: #{inspect(master_node)} (no previous master)"
+          )
 
           broadcast(total_nodes, {:set_master, master_node})
 
         [{master_node, _node_state} | []] ->
+          Logger.info("Orchestrator - New master elected: #{inspect(master_node)} (only choice)")
+
           broadcast(total_nodes, {:set_master, master_node})
 
         conflicting_master_nodes ->
           master_node =
             conflicting_master_nodes
             |> select_best_master_node()
-            |> IO.inspect(label: "BEST MASTER SELECTED")
+
+          Logger.info(
+            "Orchestrator - New master elected: #{inspect(master_node)} (between nodes: #{inspect(conflicting_master_nodes)})"
+          )
 
           broadcast(total_nodes, {:set_master, master_node})
       end
 
-      IO.inspect("ELECTION DONE")
-
       {:noreply, state}
     else
-      IO.inspect(nodes_state, label: "ALL NODES ARE NOT READY, WAITING...")
+      Logger.debug("Orchestrator - Not ready for master election yet")
       elect_master(100)
       {:noreply, state}
     end
@@ -244,14 +245,15 @@ defmodule EventStreamex.Orchestrator do
         {:set_state, node, %NodeState{} = node_state},
         %__MODULE__{nodes_state: nodes_state} = state
       ) do
-    IO.inspect({node, node_state}, label: "RECEIVED NODE STATE")
+    new_nodes_state = nodes_state |> Enum.map(&update_node_state(&1, node, node_state))
+
+    Logger.debug("Orchestrator - Updated nodes state: #{inspect(new_nodes_state)}")
 
     {:noreply,
      %__MODULE__{
        state
-       | nodes_state: nodes_state |> Enum.map(&update_node_state(&1, node, node_state))
-     }
-     |> IO.inspect(label: "NEW NODES_STATE")}
+       | nodes_state: new_nodes_state
+     }}
   end
 
   @impl true
@@ -259,8 +261,6 @@ defmodule EventStreamex.Orchestrator do
         {:set_master, new_master_node},
         %__MODULE__{master: prev_master_node, supervisor: supervisor} = state
       ) do
-    IO.inspect(new_master_node, label: "NEW MASTER NODE ELECTED")
-
     new_state =
       cond do
         new_master_node == prev_master_node ->
@@ -268,16 +268,19 @@ defmodule EventStreamex.Orchestrator do
           state
 
         new_master_node == node() ->
+          Logger.info("Orchestrator - Starting supervisor (node becoming new master)")
           # We become the new master node, we have to start the supervisor
           %__MODULE__{
             state
             | master: new_master_node,
-              supervisor: start_supervisor() |> IO.inspect(label: "SUPERVISOR STARTED")
+              supervisor: start_supervisor()
           }
 
         prev_master_node == node() ->
+          Logger.info("Orchestrator - Stopping supervisor (node not master anymore)")
           # We are not the master node anymore, we stop the supervisor
-          stop_supervisor(supervisor) |> IO.inspect(label: "SUPERVISOR STOPPED")
+          stop_supervisor(supervisor)
+
           %__MODULE__{state | master: new_master_node, supervisor: nil}
 
         true ->
