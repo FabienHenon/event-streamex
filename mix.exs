@@ -19,7 +19,7 @@ defmodule EventStreamex.MixProject do
       env: [
         app_name: nil,
         database: "postgres",
-        durable_slot: false,
+        durable_slot: true,
         error_logger_adapter: {EventStreamex.Operators.Logger.LoggerAdapter, []},
         hostname: "localhost",
         operator_queue_backoff_multiplicator: 2,
