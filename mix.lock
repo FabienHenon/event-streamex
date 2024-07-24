@@ -24,4 +24,5 @@
   "tzdata": {:hex, :tzdata, "1.1.1", "20c8043476dfda8504952d00adac41c6eda23912278add38edc140ae0c5bcc46", [:mix], [{:hackney, "~> 1.17", [hex: :hackney, repo: "hexpm", optional: false]}], "hexpm", "a69cec8352eafcd2e198dea28a34113b60fdc6cb57eb5ad65c10292a6ba89787"},
   "unicode_util_compat": {:hex, :unicode_util_compat, "0.7.0", "bc84380c9ab48177092f43ac89e4dfa2c6d62b40b8bd132b1059ecc7232f9a78", [:rebar3], [], "hexpm", "25eee6d67df61960cf6a794239566599b09e17e668d3700247bc498638152521"},
   "uuid": {:hex, :uuid, "1.1.8", "e22fc04499de0de3ed1116b770c7737779f226ceefa0badb3592e64d5cfb4eb9", [:mix], [], "hexpm", "c790593b4c3b601f5dc2378baae7efaf5b3d73c4c6456ba85759905be792f2ac"},
+  "walex": {:hex, :walex, "4.1.0", "b6f466fea5eb0ab50ddf58ee9972281c32232bd22c39172deb5d91bc856647a8", [:mix], [{:decimal, "~> 2.1.1", [hex: :decimal, repo: "hexpm", optional: false]}, {:jason, "~> 1.4", [hex: :jason, repo: "hexpm", optional: false]}, {:postgrex, "~> 0.18.0", [hex: :postgrex, repo: "hexpm", optional: false]}, {:timex, "~> 3.7", [hex: :timex, repo: "hexpm", optional: false]}], "hexpm", "ba8765ccae8100c92c6882b75811a0064067d8a95602e4b7ef5da7597227fb3b"},
 }
