@@ -62,7 +62,7 @@ defmodule EventStreamex.Events do
             Logger.debug("#{unquote(table_name)} inserted: #{inspect(items)}")
 
             items
-            |> Enum.each(&EventStreamex.Operators.Scheduler.process_event(&1))
+            |> Enum.each(&EventStreamex.Events.process_event(&1))
 
             EventStreamex.Events.handle_events_broadcast(
               items,
@@ -82,7 +82,7 @@ defmodule EventStreamex.Events do
             Logger.debug("#{unquote(table_name)} updated: #{inspect(items)}")
 
             items
-            |> Enum.each(&EventStreamex.Operators.Scheduler.process_event(&1))
+            |> Enum.each(&EventStreamex.Events.process_event(&1))
 
             EventStreamex.Events.handle_events_broadcast(
               items,
@@ -102,7 +102,7 @@ defmodule EventStreamex.Events do
             Logger.debug("#{unquote(table_name)} deleted: #{inspect(items)}")
 
             items
-            |> Enum.each(&EventStreamex.Operators.Scheduler.process_event(&1))
+            |> Enum.each(&EventStreamex.Events.process_event(&1))
 
             EventStreamex.Events.handle_events_broadcast(
               items,
@@ -115,6 +115,20 @@ defmodule EventStreamex.Events do
         )
       end
     end
+  end
+
+  @doc false
+  def process_event(event) do
+    start_metadata = %{type: :enqueue_event, event: event}
+
+    :telemetry.span(
+      [:event_streamex, :enqueue_event],
+      start_metadata,
+      fn ->
+        result = EventStreamex.Operators.Scheduler.process_event(event)
+        {result, start_metadata}
+      end
+    )
   end
 
   @doc false

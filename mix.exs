@@ -44,8 +44,9 @@ defmodule EventStreamex.MixProject do
       {:jason, "~> 1.4"},
       {:uuid, "~> 1.1"},
       {:walex, path: "../walex"},
+      # {:walex, "~> 4.0.0"},
+      {:telemetry, "~> 1.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
-      # {:walex, "~> 4.0.0"}
     ]
   end
 end
