@@ -45,7 +45,9 @@ defmodule EventStreamex.MixProject do
       {:uuid, "~> 1.1"},
       {:walex, "~> 4.1.0"},
       {:telemetry, "~> 1.0"},
-      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+      {:phoenix_live_view, "~> 0.20.2", only: :test},
+      {:bandit, "~> 1.2", only: :test}
     ]
   end
 end

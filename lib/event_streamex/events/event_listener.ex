@@ -4,6 +4,7 @@ defmodule EventStreamex.EventListener do
   defmacro __using__(opts) do
     table_name = Keyword.get(opts, :schema, "events")
     subscriptions = Keyword.get(opts, :subscriptions, [:direct, :unscoped])
+    application = Keyword.get(opts, :application, Application)
 
     source_modules = __CALLER__.context_modules |> Enum.map(&Atom.to_string/1) |> Enum.join("/")
 
@@ -16,7 +17,7 @@ defmodule EventStreamex.EventListener do
          handle_subscriptions(
            fn channel ->
              [adapter: pubsub_adapter, name: pubsub] =
-               Application.get_env(:event_streamex, :pubsub)
+               unquote(application).get_env(:event_streamex, :pubsub)
 
              pubsub_adapter.subscribe(pubsub, channel)
            end,
@@ -34,7 +35,7 @@ defmodule EventStreamex.EventListener do
         handle_subscriptions(
           fn channel ->
             [adapter: pubsub_adapter, name: pubsub] =
-              Application.get_env(:event_streamex, :pubsub)
+              unquote(application).get_env(:event_streamex, :pubsub)
 
             pubsub_adapter.unsubscribe(pubsub, channel)
           end,
@@ -53,7 +54,7 @@ defmodule EventStreamex.EventListener do
          handle_subscriptions(
            fn channel ->
              [adapter: pubsub_adapter, name: pubsub] =
-               Application.get_env(:event_streamex, :pubsub)
+               unquote(application).get_env(:event_streamex, :pubsub)
 
              pubsub_adapter.subscribe(pubsub, channel)
            end,
@@ -131,7 +132,7 @@ defmodule EventStreamex.EventListener do
         handle_subscriptions(
           fn channel ->
             [adapter: pubsub_adapter, name: pubsub] =
-              Application.get_env(:event_streamex, :pubsub)
+              unquote(application).get_env(:event_streamex, :pubsub)
 
             pubsub_adapter.subscribe(pubsub, channel)
           end,
