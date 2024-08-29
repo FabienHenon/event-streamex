@@ -7,6 +7,10 @@ defmodule EventStreamex.Operators.Executor do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
+  def start_task(pid) do
+    GenServer.cast(pid, :start)
+  end
+
   @impl true
   def init(opts) do
     module = Keyword.get(opts, :module, nil)
@@ -52,7 +56,7 @@ defmodule EventStreamex.Operators.Executor do
   end
 
   @impl true
-  def handle_info(:start, state) do
+  def handle_cast(:start, state) do
     {:ok, pid, ref, start_time} = start_process(state.module, state.initial_state)
 
     Logger.debug("Operator #{inspect(state.module)} started.")

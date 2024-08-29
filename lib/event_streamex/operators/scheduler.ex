@@ -66,7 +66,7 @@ defmodule EventStreamex.Operators.Scheduler do
 
     ref = Process.monitor(pid)
 
-    Process.send(pid, :start, [])
+    Executor.start_task(pid)
 
     {:ok, pid, ref}
   end
