@@ -4,6 +4,8 @@ defmodule EventStreamex.Operators.Scheduler do
   # EventStreamex.restart_scheduler()
   use GenServer, restart: :temporary
 
+  require Logger
+
   alias EventStreamex.Operators.{Executor, Queue, Operator}
 
   def start_link(arg) do
@@ -47,8 +49,8 @@ defmodule EventStreamex.Operators.Scheduler do
   }
   ```
   """
-  def process_event(event) do
-    GenServer.cast(__MODULE__, {:process_event, event})
+  def process_event(pid, event) do
+    GenServer.cast(pid, {:process_event, event})
   end
 
   defp get_modules_for_event(event) do
@@ -64,6 +66,8 @@ defmodule EventStreamex.Operators.Scheduler do
 
     ref = Process.monitor(pid)
 
+    Process.send(pid, :start, [])
+
     {:ok, pid, ref}
   end
 
@@ -72,16 +76,25 @@ defmodule EventStreamex.Operators.Scheduler do
   """
   def is_alive?() do
     pid = Process.whereis(__MODULE__)
-    pid && Process.alive?(pid)
+    not is_nil(pid) && Process.alive?(pid)
   end
 
   ## Callbacks
 
   @impl true
   def init(opts) do
+    Logger.debug("Scheduler starting...")
     config = Keyword.get(opts, :config, [])
 
-    {:ok, %{config: config, curr_job: start_operator(Queue.get_task(), config)}}
+    curr_job = start_operator(Queue.get_task(), config)
+
+    Logger.debug("Scheduler started")
+
+    {:ok,
+     %{
+       config: config,
+       curr_job: curr_job
+     }}
   end
 
   @impl true

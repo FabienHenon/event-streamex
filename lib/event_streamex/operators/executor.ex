@@ -12,20 +12,18 @@ defmodule EventStreamex.Operators.Executor do
     module = Keyword.get(opts, :module, nil)
     initial_state = Keyword.get(opts, :initial_state, [])
 
-    {:ok, pid, ref, start_time} = start_process(module, initial_state)
-
     {:ok,
      %{
        max_retries: Keyword.get(opts, :operator_queue_max_retries, 5),
        max_restart_time: Keyword.get(opts, :operator_queue_max_restart_time, 10000),
        backoff_multiplicator: Keyword.get(opts, :operator_queue_backoff_multiplicator, 1.5),
-       monitor_ref: ref,
+       monitor_ref: nil,
        module: module,
-       job_pid: pid,
+       job_pid: nil,
        initial_state: initial_state,
        curr_retries: 0,
        curr_time_to_wait: Keyword.get(opts, :operator_queue_min_restart_time, 500),
-       start_time: start_time
+       start_time: nil
      }}
   end
 
@@ -48,7 +46,18 @@ defmodule EventStreamex.Operators.Executor do
 
     ref = Process.monitor(pid)
 
+    Process.send(pid, :process, [])
+
     {:ok, pid, ref, start_time}
+  end
+
+  @impl true
+  def handle_info(:start, state) do
+    {:ok, pid, ref, start_time} = start_process(state.module, state.initial_state)
+
+    Logger.debug("Operator #{inspect(state.module)} started.")
+
+    {:noreply, %{state | job_pid: pid, monitor_ref: ref, start_time: start_time}}
   end
 
   @impl true

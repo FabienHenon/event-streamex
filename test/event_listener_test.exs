@@ -1,59 +1,7 @@
 defmodule EventListenerTest do
   use ExUnit.Case, async: false
 
-  defmodule PubSub do
-    use GenServer
-
-    def subscribe(:adapter_name, channel) do
-      GenServer.cast(__MODULE__, {:subscribe, self(), channel})
-    end
-
-    def unsubscribe(:adapter_name, channel) do
-      GenServer.cast(__MODULE__, {:unsubscribe, self(), channel})
-    end
-
-    def broadcast(:adapter_name, channel, message) do
-      GenServer.cast(__MODULE__, {:broadcast, channel, message})
-    end
-
-    def start_link(opts) do
-      GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-    end
-
-    @impl true
-    def init(_opts) do
-      {:ok, %{}}
-    end
-
-    @impl true
-    def handle_cast({:subscribe, pid, channel}, state) do
-      {:noreply, Map.put(state, channel, pid)}
-    end
-
-    @impl true
-    def handle_cast({:unsubscribe, _pid, channel}, state) do
-      {:noreply, Map.delete(state, channel)}
-    end
-
-    @impl true
-    def handle_cast({:broadcast, channel, message}, state) do
-      pid = Map.get(state, channel, nil)
-      pid && Process.send(pid, message, [])
-      {:noreply, state}
-    end
-  end
-
-  defmodule App do
-    def get_env(:event_streamex, :pubsub) do
-      [adapter: PubSub, name: :adapter_name]
-    end
-  end
-
   setup do
-    {:ok, pid} = PubSub.start_link([])
-
-    on_exit(fn -> Process.exit(pid, :normal) end)
-
     %{socket: %Phoenix.LiveView.Socket{private: %{}}}
   end
 
@@ -62,8 +10,7 @@ defmodule EventListenerTest do
 
     use EventStreamex.EventListener,
       schema: "comments",
-      subscriptions: [%{scopes: [post_id: "posts"]}],
-      application: App
+      subscriptions: [%{scopes: [post_id: "posts"]}]
   end
 
   describe "ScopeLiveView" do
@@ -72,7 +19,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{}
 
-      PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
 
       refute_receive :test, 100
     end
@@ -83,7 +30,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{}
 
-      PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
 
       refute_receive :test, 100
     end
@@ -97,7 +44,7 @@ defmodule EventListenerTest do
                subscribed?: %{:direct => false, :unscoped => false, "post_id:posts" => true}
              }
 
-      PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
 
       assert_receive :test, 1000
     end
@@ -112,7 +59,7 @@ defmodule EventListenerTest do
                subscribed?: %{:direct => false, :unscoped => false, "post_id:posts" => false}
              }
 
-      PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test)
 
       refute_receive :test, 100
     end
@@ -123,8 +70,7 @@ defmodule EventListenerTest do
 
     use EventStreamex.EventListener,
       schema: "comments",
-      subscriptions: [%{scopes: [post_id: "posts", user_id: "authors"]}],
-      application: App
+      subscriptions: [%{scopes: [post_id: "posts", user_id: "authors"]}]
   end
 
   describe "ComplexScopeLiveView" do
@@ -133,7 +79,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{}
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
 
       refute_receive :test, 100
     end
@@ -146,7 +92,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{}
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
 
       refute_receive :test, 100
     end
@@ -159,7 +105,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{}
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
 
       refute_receive :test, 100
     end
@@ -183,7 +129,7 @@ defmodule EventListenerTest do
                }
              }
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
 
       assert_receive :test, 1000
     end
@@ -209,7 +155,7 @@ defmodule EventListenerTest do
                }
              }
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test)
 
       refute_receive :test, 100
     end
@@ -220,8 +166,7 @@ defmodule EventListenerTest do
 
     use EventStreamex.EventListener,
       schema: "comments",
-      subscriptions: [:unscoped],
-      application: App
+      subscriptions: [:unscoped]
   end
 
   describe "UnscopeLiveView" do
@@ -230,7 +175,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{subscribed?: %{direct: false, unscoped: true}}
 
-      PubSub.broadcast(:adapter_name, "comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test)
 
       assert_receive :test, 1000
     end
@@ -242,7 +187,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{subscribed?: %{direct: false, unscoped: false}}
 
-      PubSub.broadcast(:adapter_name, "comments", :test)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test)
 
       refute_receive :test, 100
     end
@@ -253,8 +198,7 @@ defmodule EventListenerTest do
 
     use EventStreamex.EventListener,
       schema: "comments",
-      subscriptions: [:direct],
-      application: App
+      subscriptions: [:direct]
   end
 
   describe "DirectScopeLiveView" do
@@ -263,7 +207,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{}
 
-      PubSub.broadcast(:adapter_name, "comments/89", :test)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test)
 
       refute_receive :test, 100
     end
@@ -276,7 +220,7 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{}
 
-      PubSub.broadcast(:adapter_name, "comments/89", :test)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test)
 
       refute_receive :test, 100
     end
@@ -292,7 +236,7 @@ defmodule EventListenerTest do
                subscribed?: %{:direct => true, :unscoped => false}
              }
 
-      PubSub.broadcast(:adapter_name, "comments/89", :test)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test)
 
       assert_receive :test, 1000
     end
@@ -310,7 +254,7 @@ defmodule EventListenerTest do
                subscribed?: %{:direct => false, :unscoped => false}
              }
 
-      PubSub.broadcast(:adapter_name, "comments/89", :test)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test)
 
       refute_receive :test, 100
     end
@@ -321,8 +265,7 @@ defmodule EventListenerTest do
 
     use EventStreamex.EventListener,
       schema: "comments",
-      subscriptions: [:direct, :unscoped, %{scopes: [post_id: "posts", user_id: "authors"]}],
-      application: App
+      subscriptions: [:direct, :unscoped, %{scopes: [post_id: "posts", user_id: "authors"]}]
   end
 
   describe "AllScopesLiveView" do
@@ -331,9 +274,9 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{subscribed?: %{direct: false, unscoped: true}}
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
-      PubSub.broadcast(:adapter_name, "comments", :test_unscope)
-      PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test_unscope)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
 
       refute_receive :test_scopes, 100
       assert_receive :test_unscope, 1000
@@ -348,9 +291,9 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{subscribed?: %{direct: false, unscoped: true}}
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
-      PubSub.broadcast(:adapter_name, "comments", :test_unscope)
-      PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test_unscope)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
 
       refute_receive :test_scopes, 100
       assert_receive :test_unscope, 1000
@@ -365,9 +308,9 @@ defmodule EventListenerTest do
 
       assert new_socket.private == %{subscribed?: %{direct: false, unscoped: true}}
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
-      PubSub.broadcast(:adapter_name, "comments", :test_unscope)
-      PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test_unscope)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
 
       refute_receive :test_scopes, 100
       assert_receive :test_unscope, 1000
@@ -385,9 +328,9 @@ defmodule EventListenerTest do
                subscribed?: %{direct: true, unscoped: true}
              }
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
-      PubSub.broadcast(:adapter_name, "comments", :test_unscope)
-      PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test_unscope)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
 
       refute_receive :test_scopes, 100
       assert_receive :test_unscope, 1000
@@ -413,9 +356,9 @@ defmodule EventListenerTest do
                }
              }
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
-      PubSub.broadcast(:adapter_name, "comments", :test_unscope)
-      PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test_unscope)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
 
       assert_receive :test_scopes, 1000
       assert_receive :test_unscope, 1000
@@ -443,9 +386,9 @@ defmodule EventListenerTest do
                }
              }
 
-      PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
-      PubSub.broadcast(:adapter_name, "comments", :test_unscope)
-      PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/authors/456/comments", :test_scopes)
+      Utils.PubSub.broadcast(:adapter_name, "comments", :test_unscope)
+      Utils.PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
 
       refute_receive :test_scopes, 100
       refute_receive :test_unscope, 100

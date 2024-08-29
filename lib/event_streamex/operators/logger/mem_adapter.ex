@@ -2,6 +2,7 @@ defmodule EventStreamex.Operators.Queue.MemAdapter do
   use GenServer
   @behaviour EventStreamex.Operators.Queue.QueueStorageAdapter
 
+  @impl true
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -19,6 +20,11 @@ defmodule EventStreamex.Operators.Queue.MemAdapter do
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def load_queue() do
     GenServer.call(__MODULE__, :load)
+  end
+
+  @impl EventStreamex.Operators.Queue.QueueStorageAdapter
+  def reset_queue() do
+    GenServer.call(__MODULE__, :reset)
   end
 
   # Callbacks
@@ -48,5 +54,10 @@ defmodule EventStreamex.Operators.Queue.MemAdapter do
   @impl true
   def handle_call(:load, _from, queue) do
     {:reply, {:ok, queue}, queue}
+  end
+
+  @impl true
+  def handle_call(:reset, _from, _queue) do
+    {:reply, {:ok, []}, []}
   end
 end

@@ -3,6 +3,7 @@ defmodule EventStreamex.Operators.Logger.LoggerAdapter do
   @behaviour EventStreamex.Operators.Logger.ErrorLoggerAdapter
   require Logger
 
+  @impl EventStreamex.Operators.Logger.ErrorLoggerAdapter
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

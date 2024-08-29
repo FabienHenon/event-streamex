@@ -39,7 +39,21 @@ defmodule EventStreamex.Operators.Logger.ErrorLoggerAdapter do
   """
   @callback log_failed(atom(), any(), retry_status()) :: :ok
 
+  @doc """
+  This function will be called at startup to spawn the error logger adapter.
+
+  The param comes from the configuration of the adapter:
+
+  ```elixir
+  error_logger_adapter: {EventStreamex.Operators.Logger.LoggerAdapter, []},
+  ```
+
+  The return value is a tuple with the pid of the spawned process
+  """
+  @callback start_link(any()) :: {:ok, pid()}
+
   use GenServer
+  require Logger
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -58,7 +72,9 @@ defmodule EventStreamex.Operators.Logger.ErrorLoggerAdapter do
   @impl true
   @spec init({atom(), any()}) :: {:ok, atom()}
   def init({error_logger_adapter, args}) do
+    Logger.debug("ErrorLoggerAdapter starting...")
     {:ok, _pid} = error_logger_adapter.start_link(args)
+    Logger.debug("ErrorLoggerAdapter started")
     {:ok, error_logger_adapter}
   end
 

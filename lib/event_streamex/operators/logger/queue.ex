@@ -2,14 +2,23 @@ defmodule EventStreamex.Operators.Queue do
   use Agent
   alias EventStreamex.Operators.Queue.QueueStorageAdapter
 
+  require Logger
+
   def start_link(_initial_value) do
-    Agent.start_link(
-      fn ->
-        {:ok, queue} = QueueStorageAdapter.load_queue()
-        queue
-      end,
-      name: __MODULE__
-    )
+    Logger.debug("Queue starting...")
+
+    res =
+      Agent.start_link(
+        fn ->
+          {:ok, queue} = QueueStorageAdapter.load_queue()
+          queue
+        end,
+        name: __MODULE__
+      )
+
+    Logger.debug("Queue started...")
+
+    res
   end
 
   def get_task do
@@ -38,4 +47,11 @@ defmodule EventStreamex.Operators.Queue do
 
   defp get_value(nil), do: nil
   defp get_value({_id, item}), do: item
+
+  def reset_queue() do
+    Agent.update(__MODULE__, fn _state ->
+      QueueStorageAdapter.reset_queue()
+      []
+    end)
+  end
 end

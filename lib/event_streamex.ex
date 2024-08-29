@@ -10,23 +10,24 @@ defmodule EventStreamex do
   def init(_opts) do
     EventStreamex.Utils.DbSetup.setup_db(Application.get_all_env(:event_streamex))
 
-    children = [
-      {WalEx.Supervisor, get_walex_config()},
-      {EventStreamex.Operators.Logger.ErrorLoggerAdapter,
-       Application.get_env(
-         :event_streamex,
-         :error_logger_adapter,
-         {EventStreamex.Operators.Logger.LoggerAdapter, []}
-       )},
-      {EventStreamex.Operators.Queue.QueueStorageAdapter,
-       Application.get_env(
-         :event_streamex,
-         :queue_storage_adapter,
-         {EventStreamex.Operators.Queue.MemAdapter, []}
-       )},
-      {EventStreamex.Operators.Queue, []},
-      {EventStreamex.Operators.Scheduler, [config: Application.get_all_env(:event_streamex)]}
-    ]
+    children =
+      [
+        {WalEx.Supervisor, get_walex_config()},
+        {EventStreamex.Operators.Logger.ErrorLoggerAdapter,
+         Application.get_env(
+           :event_streamex,
+           :error_logger_adapter,
+           {EventStreamex.Operators.Logger.LoggerAdapter, []}
+         )},
+        {EventStreamex.Operators.Queue.QueueStorageAdapter,
+         Application.get_env(
+           :event_streamex,
+           :queue_storage_adapter,
+           {EventStreamex.Operators.Queue.MemAdapter, []}
+         )},
+        {EventStreamex.Operators.Queue, []},
+        {EventStreamex.Operators.Scheduler, [config: Application.get_all_env(:event_streamex)]}
+      ]
 
     Logger.debug("Starting EventStreamex")
 
@@ -42,6 +43,10 @@ defmodule EventStreamex do
   and then, the rest of the events queue will be executed.
   """
   def restart_scheduler() do
+    if EventStreamex.Operators.Scheduler.is_alive?() do
+      Process.exit(Process.whereis(EventStreamex.Operators.Scheduler), :normal)
+    end
+
     Supervisor.start_child(
       __MODULE__,
       {EventStreamex.Operators.Scheduler, [config: Application.get_all_env(:event_streamex)]}

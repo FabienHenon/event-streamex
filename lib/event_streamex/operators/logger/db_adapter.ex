@@ -8,6 +8,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
   @table_name "event_streamex_queue"
 
+  @impl true
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -25,6 +26,11 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def load_queue() do
     GenServer.call(__MODULE__, :load)
+  end
+
+  @impl EventStreamex.Operators.Queue.QueueStorageAdapter
+  def reset_queue() do
+    GenServer.call(__MODULE__, :reset)
   end
 
   defp setup_db(%{table_name: table_name}) do
@@ -328,5 +334,25 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
         {:reply, {:ok, queue}, state}
     end
+  end
+
+  @impl true
+  def handle_call(
+        :reset,
+        _from,
+        %{table_name: table_name, pid: pid} = state
+      ) do
+    {:ok, res} =
+      Postgrex.query(
+        pid,
+        """
+        DELETE FROM #{table_name}
+        """,
+        []
+      )
+
+    Logger.debug("Queue reseted #{inspect(res)}")
+
+    {:reply, {:ok, []}, state}
   end
 end

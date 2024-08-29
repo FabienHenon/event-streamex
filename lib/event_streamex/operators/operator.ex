@@ -58,8 +58,6 @@ defmodule EventStreamex.Operators.Operator do
 
       @impl true
       def init(event) do
-        :ok = Process.send(self(), :process, [])
-
         {:ok, event}
       end
 
@@ -70,9 +68,21 @@ defmodule EventStreamex.Operators.Operator do
           ) do
         event_mapper = %{update: :on_update, insert: :on_insert, delete: :on_delete}
 
-        process_event(event, Map.get(event_mapper, event.type, nil), event.source.table)
+        case process_event(event, Map.get(event_mapper, event.type, nil), event.source.table) do
+          {:ok, res} ->
+            Logger.debug(
+              "Operator #{inspect(__MODULE__)} terminated successfully with result #{inspect(res)}"
+            )
 
-        {:stop, :normal, event}
+            {:stop, :normal, event}
+
+          reason ->
+            Logger.warning(
+              "Operator #{inspect(__MODULE__)} terminated with error #{inspect(reason)}"
+            )
+
+            {:stop, reason, event}
+        end
       end
     end
   end
@@ -120,11 +130,22 @@ defmodule EventStreamex.Operators.Operator do
           )
 
           def process_event(curr_event, unquote(event), unquote(entity)) do
-            {:ok, _res} = unquote(callback).(curr_event)
+            unquote(callback).(curr_event)
           end
         end
       end)
     end)
+    |> Enum.concat([
+      quote do
+        def process_event(_curr_event, event, entity) do
+          Logger.debug(
+            "Operator #{inspect(__MODULE__)} ignored event type #{inspect(event)} for entity #{inspect(entity)}"
+          )
+
+          {:ok, :no_op}
+        end
+      end
+    ])
   end
 
   defmacro all_events(), do: quote(do: [:on_insert, :on_update, :on_delete])
@@ -152,7 +173,7 @@ defmodule EventStreamex.Operators.Operator do
             ])
           end
 
-        Logger.debug("Operator query executed with result #{inspect(res)}")
+        Logger.debug("Operator #{inspect(__MODULE__)} query executed with result #{inspect(res)}")
 
         res
       end

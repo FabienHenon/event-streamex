@@ -7,7 +7,8 @@ defmodule EventStreamex.MixProject do
       version: "0.1.0",
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
 
@@ -16,25 +17,51 @@ defmodule EventStreamex.MixProject do
     [
       extra_applications: [:logger],
       mod: {EventStreamex.Application, []},
-      env: [
-        app_name: nil,
-        database: "postgres",
-        durable_slot: true,
-        error_logger_adapter: {EventStreamex.Operators.Logger.LoggerAdapter, []},
-        hostname: "localhost",
-        operator_queue_backoff_multiplicator: 2,
-        operator_queue_max_restart_time: 10000,
-        operator_queue_max_retries: 5,
-        operator_queue_min_restart_time: 500,
-        password: "postgres",
-        port: "5432",
-        publication: "events",
-        pubsub: [adapter: Phoenix.PubSub, name: nil],
-        queue_storage_adapter: {EventStreamex.Operators.Queue.MemAdapter, []},
-        slot_name: "postgres_slot",
-        url: "",
-        username: "postgres"
-      ]
+      env: application_env(Mix.env())
+    ]
+  end
+
+  defp application_env(:test) do
+    [
+      app_name: :event_streamex,
+      database: "postgres",
+      durable_slot: false,
+      error_logger_adapter: {Utils.LoggerAdapter, nil},
+      hostname: "localhost",
+      operator_queue_backoff_multiplicator: 2,
+      operator_queue_max_restart_time: 200,
+      operator_queue_max_retries: 1,
+      operator_queue_min_restart_time: 100,
+      password: "",
+      port: "5432",
+      publication: "events",
+      pubsub: [adapter: Utils.PubSub, name: :adapter_name],
+      queue_storage_adapter: {EventStreamex.Operators.Queue.MemAdapter, []},
+      slot_name: "postgres_test_slot",
+      url: "",
+      username: "postgres"
+    ]
+  end
+
+  defp application_env(_) do
+    [
+      app_name: nil,
+      database: "postgres",
+      durable_slot: true,
+      error_logger_adapter: {EventStreamex.Operators.Logger.LoggerAdapter, []},
+      hostname: "localhost",
+      operator_queue_backoff_multiplicator: 2,
+      operator_queue_max_restart_time: 10000,
+      operator_queue_max_retries: 5,
+      operator_queue_min_restart_time: 500,
+      password: "postgres",
+      port: "5432",
+      publication: "events",
+      pubsub: [adapter: Phoenix.PubSub, name: nil],
+      queue_storage_adapter: {EventStreamex.Operators.Queue.MemAdapter, []},
+      slot_name: "postgres_slot",
+      url: "",
+      username: "postgres"
     ]
   end
 
@@ -47,7 +74,12 @@ defmodule EventStreamex.MixProject do
       {:telemetry, "~> 1.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:phoenix_live_view, "~> 0.20.2", only: :test},
-      {:bandit, "~> 1.2", only: :test}
+      {:bandit, "~> 1.2", only: :test},
+      {:phoenix_ecto, "~> 4.4", only: :test},
+      {:ecto_sql, "~> 3.10", only: :test}
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 end
