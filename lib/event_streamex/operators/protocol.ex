@@ -1,4 +1,5 @@
 defprotocol EventStreamex.Operators.OperatorsProtocol do
+  @moduledoc false
   @spec schemas(t()) :: [binary()]
   def schemas(data)
 

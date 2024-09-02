@@ -1,11 +1,24 @@
 defmodule EventStreamex do
+  @moduledoc """
+  The event streaming system supervisor.
+
+  This supervisor is the one started by `EventStreamex.Orchestrator` when
+  the current node is the master node.
+
+  This supervisor is responsible for starting the whole system.
+  """
+
+  @moduledoc since: "1.0.0"
+
   require Logger
   use Supervisor
 
+  @doc false
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc false
   @impl true
   def init(_opts) do
     EventStreamex.Utils.DbSetup.setup_db(Application.get_all_env(:event_streamex))
@@ -34,11 +47,17 @@ defmodule EventStreamex do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
+  @spec restart_scheduler() ::
+          {:error, any()} | {:ok, :undefined | pid()} | {:ok, :undefined | pid(), any()}
   @doc """
+  Restarts the `EventStreamex.Operators.Scheduler`.
+
   Should only be used when the Scheduler crashes because of an operator
   that fails after several restarts.
+
   Because this failure is critical, the sheduler will fail and must be restarted
   manually using this function when the error is solved with the operator.
+
   When the scheduler is restarted, the failed operator will be restarted
   and then, the rest of the events queue will be executed.
   """

@@ -1,4 +1,6 @@
 defmodule EventStreamex.Utils.DbSetup do
+  @moduledoc false
+
   require Logger
 
   def setup_db(opts) do

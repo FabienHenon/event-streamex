@@ -1,4 +1,12 @@
 defmodule EventStreamex.Operators.Queue.DbAdapter do
+  @moduledoc """
+  A database queue adapter.
+
+  The queue is stored in the database.
+  It uses the information from the configuration to connect to the database
+  and it automatically creates the database to store the queue.
+  """
+  @moduledoc since: "1.0.0"
   require Logger
   use GenServer
   @behaviour EventStreamex.Operators.Queue.QueueStorageAdapter
@@ -8,26 +16,31 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
   @table_name "event_streamex_queue"
 
+  @doc false
   @impl true
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc false
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def add_item(item) do
     GenServer.call(__MODULE__, {:save, item})
   end
 
+  @doc false
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def delete_item(item) do
     GenServer.call(__MODULE__, {:delete, item})
   end
 
+  @doc false
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def load_queue() do
     GenServer.call(__MODULE__, :load)
   end
 
+  @doc false
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def reset_queue() do
     GenServer.call(__MODULE__, :reset)
@@ -71,6 +84,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     "#{Integer.to_string(low, 16)}/#{Integer.to_string(high, 16)}"
   end
 
+  @doc false
   def decode(%{
         "id" => id,
         "module" => module,
@@ -169,6 +183,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
   # Callbacks
 
+  @doc false
   @impl true
   def init(opts) do
     table_name = Keyword.get(opts, :table_name, @table_name)
@@ -178,6 +193,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     {:ok, %{table_name: table_name, pid: pid}}
   end
 
+  @doc false
   @impl true
   def handle_call(
         {:save, {id, {module, item}}},
@@ -251,6 +267,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     {:reply, res, state}
   end
 
+  @doc false
   @impl true
   def handle_call(
         {:delete, {id, {_module, _item}}},
@@ -272,6 +289,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     {:reply, res, state}
   end
 
+  @doc false
   @impl true
   def handle_call(
         {_action, nil},
@@ -281,6 +299,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     {:reply, {:ok, :ok}, state}
   end
 
+  @doc false
   @impl true
   def handle_call(
         :load,
@@ -336,6 +355,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     end
   end
 
+  @doc false
   @impl true
   def handle_call(
         :reset,

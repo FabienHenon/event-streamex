@@ -1,4 +1,28 @@
 defmodule EventStreamex.Orchestrator do
+  @moduledoc """
+  Module responsible for launching the event streaming system.
+
+  The event streaming system cannot run at the same time in different nodes.
+  Otherwise it would crash because of a duplicate replica slot.
+  And if we changed the name of the replica slot for each node it would, then,
+  duplicate all WAL events received by PostgreSQL.
+
+  This is something we don't want, thus, we have this orchestrator that will
+  ensure only one instance of the system is running at the same time.
+
+  It will also ensure that if the master node (the one running the system) crashes or terminates,
+  the system will be started on another node to continue processing new WAL events.
+
+  Every node runs the orchestrator.
+  When a node starts it generates a unique identifier based on the current time
+  and communicates that id to the other nodes.
+
+  When a node terminates a new election is run based on the lowest node identifier.
+  Thus, all nodes will agree on the new master node.
+  """
+
+  @moduledoc since: "1.0.0"
+
   use GenServer
   import Bitwise
   require Logger
@@ -6,15 +30,26 @@ defmodule EventStreamex.Orchestrator do
   @bits_offset 4
 
   defmodule NodeState do
+    @moduledoc false
     defstruct is_master: false, unique_identifier: nil
   end
 
   defstruct nodes: [], master: nil, supervisor: nil, unique_identifier: nil, nodes_state: []
 
+  @doc false
+  @spec start_link(any()) :: :ignore | {:error, any()} | {:ok, pid()}
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc """
+  Checks if the supervisor is alive.
+
+  The supervisor is the event streaming system.
+  It should be alive if the current node is the master node.
+  """
+  @doc since: "1.0.0"
+  @spec supervisor_alive?() :: boolean()
   def supervisor_alive?() do
     GenServer.call(__MODULE__, :alive?)
   end
@@ -116,6 +151,7 @@ defmodule EventStreamex.Orchestrator do
 
   # Callbacks
 
+  @doc false
   @impl true
   def init(_opts) do
     :ok = :net_kernel.monitor_nodes(true)
@@ -150,6 +186,7 @@ defmodule EventStreamex.Orchestrator do
     {:ok, new_state}
   end
 
+  @doc false
   @impl true
   def handle_info({:nodeup, node}, state) do
     Logger.debug("Orchestrator - New node connected: #{inspect({node, {node(), Node.list()}})}")
@@ -163,6 +200,7 @@ defmodule EventStreamex.Orchestrator do
      %__MODULE__{state | nodes: Node.list(), nodes_state: [{node, nil} | state.nodes_state]}}
   end
 
+  @doc false
   @impl true
   def handle_info({:nodedown, node}, state) do
     Logger.debug("Orchestrator - Node disconnected: #{inspect({node, {node(), Node.list()}})}")
@@ -177,6 +215,7 @@ defmodule EventStreamex.Orchestrator do
      }}
   end
 
+  @doc false
   @impl true
   def handle_info(:elect_master, %__MODULE__{nodes: nodes, nodes_state: nodes_state} = state) do
     total_nodes = [node() | nodes]
@@ -220,26 +259,31 @@ defmodule EventStreamex.Orchestrator do
     end
   end
 
+  @doc false
   @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
   end
 
+  @doc false
   @impl true
   def handle_call(:alive?, _from, %__MODULE__{supervisor: nil} = state) do
     {:reply, false, state}
   end
 
+  @doc false
   @impl true
   def handle_call(:alive?, _from, %__MODULE__{supervisor: pid} = state) do
     {:reply, Process.alive?(pid), state}
   end
 
+  @doc false
   @impl true
   def handle_call(message, _from, state) do
     {:reply, exec(state, message), state}
   end
 
+  @doc false
   @impl true
   def handle_cast(
         {:set_state, node, %NodeState{} = node_state},
@@ -256,6 +300,7 @@ defmodule EventStreamex.Orchestrator do
      }}
   end
 
+  @doc false
   @impl true
   def handle_cast(
         {:set_master, new_master_node},

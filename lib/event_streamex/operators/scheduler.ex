@@ -1,19 +1,46 @@
 defmodule EventStreamex.Operators.Scheduler do
-  # The scheduler will fail if an operator fails after several restarts
-  # The scheduler will have to be manually restarted with
-  # EventStreamex.restart_scheduler()
+  @moduledoc """
+  Is responsible for starting operators as soon as an event is received.
+
+  When an event is received, the scheduler processes it by searching for
+  any `EventStreamex.Operators.Operator` listening to it.
+
+  The it will start an `EventStreamex.Operators.Executor` who will be responsible
+  for the completion of the operator.
+
+  If the operator fails too many times, then, the executor will also fail,
+  as well as the scheduler.
+
+  If this happens that means that no more event will be processed.
+  This is a security to avoid inconsistency in your data, as events must be
+  processed in order.
+
+  If the scheduler fails, you will have to restart it yourself using `EventStreamex.restart_scheduler()`.
+
+  But before you do that, ensure that the operator will not crash again. Maybe it will
+  require some code changes. Or a system to be up and running again.
+
+  Do not hesitate to implement your own `EventStreamex.Operators.Logger.ErrorLoggerAdapter`
+  to be notified why a crash appeared.
+  """
+  @moduledoc since: "1.0.0"
   use GenServer, restart: :temporary
 
   require Logger
 
   alias EventStreamex.Operators.{Executor, Queue, Operator}
 
+  @doc false
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
   @doc """
-  Event example:
+  Function used to process an event.
+
+  **You must not use this function yourself**
+
+  ## Event example:
 
   ```
   %Walex.Event{
@@ -49,6 +76,7 @@ defmodule EventStreamex.Operators.Scheduler do
   }
   ```
   """
+  @doc since: "1.0.0"
   def process_event(pid, event) do
     GenServer.cast(pid, {:process_event, event})
   end
@@ -74,6 +102,7 @@ defmodule EventStreamex.Operators.Scheduler do
   @doc """
   Returns the status of the scheduler.
   """
+  @doc since: "1.0.0"
   def is_alive?() do
     pid = Process.whereis(__MODULE__)
     not is_nil(pid) && Process.alive?(pid)
@@ -81,6 +110,7 @@ defmodule EventStreamex.Operators.Scheduler do
 
   ## Callbacks
 
+  @doc false
   @impl true
   def init(opts) do
     Logger.debug("Scheduler starting...")
@@ -97,6 +127,7 @@ defmodule EventStreamex.Operators.Scheduler do
      }}
   end
 
+  @doc false
   @impl true
   def handle_cast({:process_event, event}, %{curr_job: :no_job} = state) do
     modules = get_modules_for_event(event)
@@ -107,6 +138,7 @@ defmodule EventStreamex.Operators.Scheduler do
     {:noreply, %{state | curr_job: start_operator(Queue.get_task(), state.config)}}
   end
 
+  @doc false
   @impl true
   def handle_cast({:process_event, event}, state) do
     event
@@ -116,6 +148,7 @@ defmodule EventStreamex.Operators.Scheduler do
     {:noreply, state}
   end
 
+  @doc false
   @impl true
   def handle_info({:DOWN, ref, :process, _object, :normal}, %{curr_job: {:ok, _pid, ref}} = state) do
     Queue.task_finished()

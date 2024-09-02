@@ -1,4 +1,96 @@
 defmodule EventStreamex.Events do
+  @moduledoc """
+  This module can be used in schema modules and is necessary to mark an
+  entity for event listening.
+
+  This is what connects an entity to the WAL events.
+
+  If you don't use this module for an entity you won't be able to receive
+  its events, which will prevent you from listening to events in live views (`EventStreamex.EventListener`),
+  and to use them in operators to update other entities (`EventStreamex.Operators.Operator`).
+
+  To mark an entity for event listening, you only have to `use` this module in
+  the schema module of the entity:
+
+  ```elixir
+  defmodule MyApp.Blog.Comment do
+    use MyApp.Schema
+
+    use EventStreamex.Events,
+      name: :my_app,
+      schema: "comments",
+      extra_channels: [%{scopes: [post_id: "posts"]}]
+
+    import Ecto.Changeset
+
+    schema "comments" do
+      field :message, :string
+      field :post_id, Ecto.UUID
+
+      timestamps(type: :utc_datetime)
+    end
+
+    @doc false
+    def changeset(comment, attrs) do
+      comment
+      |> cast(attrs, [:id, :message, :post_id])
+      |> validate_required([:message, :post_id])
+    end
+  end
+  ```
+
+  In this example, we have a `comments` entity that we want to mark for event listening.
+
+  This `comments` entity is scoped by a `post_id` related to a `posts` entity.
+  So we needed to add an `extra_channels` so that comment events will also be emitted in a channel
+  specific for his scopes (See `EventStreamex.EventListener` for more details on scopes)
+
+  Several scopes can be used for an entity. The order used for scopes must be the same
+  when you define it in `EventStreamex.EventListener`.
+
+  Here is an example with another scope:
+
+  ```elixir
+  use EventStreamex.Events,
+      name: :my_app,
+      schema: "comments",
+      extra_channels: [%{scopes: [org_id: "organizations", post_id: "posts"]}]
+  ```
+
+  Here we say a comment has 2 scopes: an organization and a post.
+  That means the entity must have the 2 fields: `org_id` and `post_id`.
+
+  ## How it works
+
+  As said earlier, this module marks the entity for WAL events.
+  Which allows you to listen to its changes and to use it in operators.
+
+  Under the hoods, this module will create a sub module inside the module you use it in.
+  And it will define functions that will be called each time something happens with this entity (insert, update, delete).
+
+  Then, it will dispatch the event to all operators listening to this entity (`EventStreamex.Operators.Operator`).
+  And it will emit an event in the configured pubsub module in several channels:
+
+  * `direct`: We emit in a specific channel containing the ID of the enity
+  * `unscoped`: We emit in a channel for changes of all entities of this type
+  * `scopes`: We emit in a channel for entities matching the given scopes (Like in the example above)
+
+  *For more information about scopes and channels, see `EventStreamex.EventListener`.*
+
+  ## `use` params
+
+  When you `use` this module, you will be able to specify these parameters:
+
+  * `:module_name`: The name of the module that will be created in your module to perform the events logic (Defaults to `"Events"`)
+  * `:schema`: The name of the entity as a string (mandatory field)
+  * `:name`: The name of your application (Mandatory field)
+  * `:extra_channels`: The channels to emit events to. `:direct` and `:unscoped` are always used, and you can add your own scopes for this entity (Defaults to `[]`)
+  * `:application`: The application module to use to retrieve config values (Defaults to `Application`)
+  * `:scheduler`: If you want to use another scheduler to handle events processed by operators (Defaults to `EventStreamex.Operators.Scheduler`)
+
+  """
+
+  @moduledoc since: "1.0.0"
   alias EventStreamex.EventsProtocol
 
   require Logger
@@ -217,7 +309,7 @@ defmodule EventStreamex.Events do
     end
   end
 
-  @spec registered_event_listeners() :: [module()]
+  @doc false
   def registered_event_listeners() do
     modules =
       case EventsProtocol.__protocol__(:impls) do
@@ -237,7 +329,7 @@ defmodule EventStreamex.Events do
         do: module
   end
 
-  @spec get_modules_and_subscriptions() :: {[module()], [binary()]}
+  @doc false
   def get_modules_and_subscriptions() do
     registered_event_listeners()
     |> Enum.map(&{&1 |> EventsProtocol.module(), &1 |> EventsProtocol.table_name()})

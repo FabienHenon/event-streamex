@@ -4,7 +4,7 @@ defmodule EventStreamex.MixProject do
   def project do
     [
       app: :event_streamex,
-      version: "0.1.0",
+      version: "1.0.0",
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -58,7 +58,7 @@ defmodule EventStreamex.MixProject do
       port: "5432",
       publication: "events",
       pubsub: [adapter: Phoenix.PubSub, name: nil],
-      queue_storage_adapter: {EventStreamex.Operators.Queue.MemAdapter, []},
+      queue_storage_adapter: {EventStreamex.Operators.Queue.DbAdapter, []},
       slot_name: "postgres_slot",
       url: "",
       username: "postgres"

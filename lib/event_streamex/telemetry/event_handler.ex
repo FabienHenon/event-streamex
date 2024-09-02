@@ -1,4 +1,6 @@
 defmodule EventStreamex.Telemetry.EventHandler do
+  @moduledoc false
+
   @type t :: %{
           type: :enqueue_event | :process_event,
           event: WalEx.Event.t() | nil,
