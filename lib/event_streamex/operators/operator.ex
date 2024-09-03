@@ -37,7 +37,7 @@ defmodule EventStreamex.Operators.Operator do
 
   ### Your queries will become slower and slower over time
 
-  Because subqueries are not free. Them take more time to execute that a simple
+  Because subqueries are not free. They take more time to execute that a simple
   query with no join and subquery.
 
   So, the more posts and comments you have, the slower the query will be.
@@ -95,7 +95,7 @@ defmodule EventStreamex.Operators.Operator do
   And this entity will listen to new comments to update its comments count:
   when a new comment is created it will increase the number of comments of the related post by 1.
 
-  With Event Streamex it would look like that:
+  With `EventStreamex` it would look like that:
 
   ```elixir
   defmodule MyApp.Operators.PostWithCommentsCountOperator do
@@ -140,7 +140,7 @@ defmodule EventStreamex.Operators.Operator do
   `posts` and `comments` in all kinds of events (insert, update, delete).
 
   And each time a post or a comment is inserted, updated, deleted, we perform this `MERGE` query
-  to create/update or `post_with_comments_counts`.
+  to create/update our `post_with_comments_counts`.
 
   The `MERGE` query will insert a new post if the post does not exist and update
   it if it already exists.
@@ -185,7 +185,7 @@ defmodule EventStreamex.Operators.Operator do
   Because we are using PostgreSQL WAL events, everytime something happens on an entity
   (`post_with_comments_counts` as well), an event is sent.
 
-  This event will be treated by operators listening to it (like our operator here does for `posts` and `comments`),
+  This event will be processed by operators listening to it (like our operator here does for `posts` and `comments`),
   and it will be sent to a pubsub processor.
 
   The `EventStreamex.EventListener`, now just has to listen to this pubsub processor
@@ -198,12 +198,12 @@ defmodule EventStreamex.Operators.Operator do
   With this approach you keep your entities consistent and simple.
   And you create specialized entities for what you want to show in your views.
 
-  ie: a post will stay a post with its `title` and `body` and a comment will
-  stay a comment with a `comment`.
+  A post will stay a post with its `title` and `body` fields and a comment will
+  stay a comment with a `comment` field.
 
   `post_with_comments_count` is just a specialized entity used for your view.
 
-  This keeps your data and APIs consistent and simple with explicit fields.
+  This keeps your data and APIs consistent and simple with explicit fields and names.
 
   For instance, let's say you have a `users` entity with a `login` and a `password` field.
   But later on, you realize that you need to store some information about your users,
@@ -218,13 +218,13 @@ defmodule EventStreamex.Operators.Operator do
   But still, in your application, when comes the moment to create your user,
   you only need the `login` and `password`.
 
-  So what do you do? You set the other fields as optionals in your API and put them
+  So what do you do? You set the other fields as optionals in your API and set them
   a default value (empty string or null).
 
   And in the view that allows a user to specify more information about him (`name` and `address`),
   you will either:
-  * Use the same API as for the `users` creation
-  * Or create a new dedicated API
+  * Use the same API endpoint as for the `users` creation
+  * Or create a new dedicated API endpoint
 
   But both approachs are bad practices!
 
@@ -233,7 +233,7 @@ defmodule EventStreamex.Operators.Operator do
   But here, there is no sense in sending the `login` and `password`.
   And maybe you would like the `name` and `address` fields to be mandatory.
   But because your API set these fields as optionals, you will have to check for them from the client side.
-  Which is inconsistent.
+  Which is a bad practice.
 
   In the second approach, that means that you will create an API endpoint for the user profile.
   But this API, will finally update the `users` entity.
@@ -243,19 +243,29 @@ defmodule EventStreamex.Operators.Operator do
   A better approach would be to have a `users` entity with:
   * `login`
   * `password`
-  And its own API `/users` with only these two fields.
+  And its own API endpoint `/users` with only these two fields.
 
   And you would have a `user_profiles` entity with:
   * `user_id`
   * `name`
   * `address`
-  And its own API `/users/{user_id}/user_profiles` with only the `name` and `address` fields.
+  And its own API endpoint `/users/{user_id}/user_profiles` with only the `name` and `address` fields.
 
   And what if you need to display all of these information in your view?
   Well, you use an operator like we did for the `post_with_comments_counts`.
   Named, for instance: `user_with_profiles`, and listening to `users` and `user_profiles` events.
 
-  This wait, you keep your data and API consistent.
+  This way, you keep your data and API consistent.
+
+  ## `use` params
+
+  When you `use` this module, you will be able to specify these parameters:
+
+  * `:schema`: The name of the entity as a string (mandatory field)
+  * `:repo`: The repository used for the connection to the database (mandatory field)
+  * `:sql_adapter`: The SQL adapter to use (Defaults to `Ecto.Adapters.SQL`)
+  * `:id`: The field used as an ID for the `schema` (Defaults to `:id`)
+
   """
   @moduledoc since: "1.0.0"
   alias EventStreamex.Operators.OperatorsProtocol
@@ -421,7 +431,7 @@ defmodule EventStreamex.Operators.Operator do
     name: :comments,
     type: :update,
     source: %WalEx.Event.Source{
-      name: "WalEx,
+      name: "WalEx",
       version: "4.1.0",
       db: "postgresql",
       schema: "public",

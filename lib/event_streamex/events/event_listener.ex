@@ -461,7 +461,7 @@ defmodule EventStreamex.EventListener do
     name: :comments,
     type: :update,
     source: %WalEx.Event.Source{
-      name: "WalEx,
+      name: "WalEx",
       version: "4.1.0",
       db: "postgresql",
       schema: "public",
