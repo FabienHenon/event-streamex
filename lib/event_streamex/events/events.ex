@@ -138,8 +138,8 @@ defmodule EventStreamex.Events do
         end
       end
 
-      @module_name Module.concat([__MODULE__, unquote(module_name)])
       @table_name unquote(table_name_str)
+      @module_name Module.concat([__MODULE__, unquote(module_name)])
 
       defmodule Module.concat([__MODULE__, unquote(module_name)]) do
         @schema_module EventStreamex.Events.schema_module(__MODULE__)
@@ -148,70 +148,76 @@ defmodule EventStreamex.Events do
 
         require Logger
 
+        def on_insert_broadcast(item) do
+          EventStreamex.Events.handle_event_broadcast(
+            item,
+            :on_insert,
+            @schema_module,
+            unquote(table_name_str),
+            unquote(extra_channels),
+            unquote(application)
+          )
+        end
+
         on_insert(
           unquote(table_name),
           %{},
-          [],
+          [{Module.concat([@schema_module, unquote(module_name)]), :on_insert_broadcast}],
           fn items ->
             Logger.debug("#{unquote(table_name)} inserted: #{inspect(items)}")
 
             items
             |> Enum.each(&EventStreamex.Events.process_event(unquote(scheduler), &1))
 
-            EventStreamex.Events.handle_events_broadcast(
-              items,
-              :on_insert,
-              @schema_module,
-              unquote(table_name_str),
-              unquote(extra_channels),
-              unquote(application)
-            )
-
             :ok
           end
         )
 
+        def on_update_broadcast(item) do
+          EventStreamex.Events.handle_event_broadcast(
+            item,
+            :on_update,
+            @schema_module,
+            unquote(table_name_str),
+            unquote(extra_channels),
+            unquote(application)
+          )
+        end
+
         on_update(
           unquote(table_name),
           %{},
-          [],
+          [{Module.concat([@schema_module, unquote(module_name)]), :on_update_broadcast}],
           fn items ->
             Logger.debug("#{unquote(table_name)} updated: #{inspect(items)}")
 
             items
             |> Enum.each(&EventStreamex.Events.process_event(unquote(scheduler), &1))
 
-            EventStreamex.Events.handle_events_broadcast(
-              items,
-              :on_update,
-              @schema_module,
-              unquote(table_name_str),
-              unquote(extra_channels),
-              unquote(application)
-            )
-
             :ok
           end
         )
 
+        def on_delete_broadcast(item) do
+          EventStreamex.Events.handle_event_broadcast(
+            item,
+            :on_delete,
+            @schema_module,
+            unquote(table_name_str),
+            unquote(extra_channels),
+            unquote(application)
+          )
+        end
+
         on_delete(
           unquote(table_name),
           %{},
-          [],
+          [{Module.concat([@schema_module, unquote(module_name)]), :on_delete_broadcast}],
           fn items ->
             Logger.debug("#{unquote(table_name)} deleted: #{inspect(items)}")
 
             items
             |> Enum.each(&EventStreamex.Events.process_event(unquote(scheduler), &1))
-
-            EventStreamex.Events.handle_events_broadcast(
-              items,
-              :on_delete,
-              @schema_module,
-              unquote(table_name_str),
-              unquote(extra_channels),
-              unquote(application)
-            )
 
             :ok
           end
@@ -235,9 +241,9 @@ defmodule EventStreamex.Events do
   end
 
   @doc false
-  # Sends the received items to the listeners
-  def handle_events_broadcast(
-        items,
+  # Sends the received item to the listeners
+  def handle_event_broadcast(
+        item,
         event_name,
         schema_module,
         table_name,
@@ -246,50 +252,47 @@ defmodule EventStreamex.Events do
       ) do
     [adapter: pubsub_adapter, name: pubsub] = application.get_env(:event_streamex, :pubsub)
 
-    items
-    |> Enum.map(fn item ->
-      event = %{
-        item
-        | new_record: item.new_record && struct(schema_module, item.new_record),
-          old_record: item.old_record && struct(schema_module, item.old_record)
-      }
+    event = %{
+      item
+      | new_record: item.new_record && struct(schema_module, item.new_record),
+        old_record: item.old_record && struct(schema_module, item.old_record)
+    }
 
-      used_record = if(event_name == :on_delete, do: event.old_record, else: event.new_record)
+    used_record = if(event_name == :on_delete, do: event.old_record, else: event.new_record)
 
-      Logger.debug("#{table_name} broacasted in channel: #{table_name}")
+    Logger.debug("#{table_name} broacasted in channel: #{table_name}")
 
-      # General channel for the resource
-      pubsub_adapter.broadcast(
-        pubsub,
-        "#{table_name}",
-        {event_name, [], event}
+    # General channel for the resource
+    pubsub_adapter.broadcast(
+      pubsub,
+      "#{table_name}",
+      {event_name, [], event}
+    )
+
+    Logger.debug("#{table_name} broacasted in channel: #{table_name}/#{used_record.id}")
+
+    # Channel for direct access to the resource
+    pubsub_adapter.broadcast(
+      pubsub,
+      "#{table_name}/#{used_record.id}",
+      {event_name, :direct, event}
+    )
+
+    # Other scoped channels
+    extra_channels
+    |> Enum.each(fn %{scopes: [_ | _] = scopes} ->
+      Logger.debug(
+        "#{table_name} broadcasted in channel: #{scopes |> Enum.map(&"#{elem(&1, 1)}/#{Map.get(used_record, elem(&1, 0))}") |> Enum.join("/")}/#{table_name}"
       )
 
-      Logger.debug("#{table_name} broacasted in channel: #{table_name}/#{used_record.id}")
-
-      # Channel for direct access to the resource
+      # Scoped channels are in the form : "parent_entities/123/entities"
       pubsub_adapter.broadcast(
         pubsub,
-        "#{table_name}/#{used_record.id}",
-        {event_name, :direct, event}
+        "#{scopes |> Enum.map(&"#{elem(&1, 1)}/#{Map.get(used_record, elem(&1, 0))}") |> Enum.join("/")}/#{table_name}",
+        {event_name,
+         scopes
+         |> Enum.map(&{elem(&1, 1), Map.get(used_record, elem(&1, 0))}), event}
       )
-
-      # Other scoped channels
-      extra_channels
-      |> Enum.each(fn %{scopes: [_ | _] = scopes} ->
-        Logger.debug(
-          "#{table_name} broadcasted in channel: #{scopes |> Enum.map(&"#{elem(&1, 1)}/#{Map.get(used_record, elem(&1, 0))}") |> Enum.join("/")}/#{table_name}"
-        )
-
-        # Scoped channels are in the form : "parent_entities/123/entities"
-        pubsub_adapter.broadcast(
-          pubsub,
-          "#{scopes |> Enum.map(&"#{elem(&1, 1)}/#{Map.get(used_record, elem(&1, 0))}") |> Enum.join("/")}/#{table_name}",
-          {event_name,
-           scopes
-           |> Enum.map(&{elem(&1, 1), Map.get(used_record, elem(&1, 0))}), event}
-        )
-      end)
     end)
   end
 

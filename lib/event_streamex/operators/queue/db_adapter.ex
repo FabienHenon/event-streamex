@@ -262,7 +262,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         ]
       )
 
-    Logger.debug("Added item with result #{inspect(res)}")
+    Logger.debug("[QUEUE] Added item with result #{inspect(res)}")
 
     {:reply, res, state}
   end
@@ -284,7 +284,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         [id |> UUID.string_to_binary!()]
       )
 
-    Logger.debug("Deleted item with result #{inspect(res)}")
+    Logger.debug("[QUEUE] Deleted item with result #{inspect(res)}")
 
     {:reply, res, state}
   end
@@ -334,7 +334,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
     case res do
       %Postgrex.Result{rows: _rows, num_rows: 0} ->
-        Logger.debug("Queue retrieved with no queue")
+        Logger.debug("[QUEUE] Queue retrieved with no queue")
 
         {:reply, {:ok, []}, state}
 
@@ -349,7 +349,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
             |> decode()
           end)
 
-        Logger.debug("Queue retrieved with queue #{inspect(queue)}")
+        Logger.debug("[QUEUE] Queue retrieved with queue #{inspect(queue)}")
 
         {:reply, {:ok, queue}, state}
     end
@@ -371,7 +371,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         []
       )
 
-    Logger.debug("Queue reseted #{inspect(res)}")
+    Logger.debug("[QUEUE] Queue reseted #{inspect(res)}")
 
     {:reply, {:ok, []}, state}
   end
