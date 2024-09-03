@@ -8,7 +8,17 @@ defmodule EventStreamex.MixProject do
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+
+      # Docs
+      name: "EventStreamex",
+      source_url: "https://github.com/FabienHenon/event-streamex",
+      homepage_url: "https://github.com/FabienHenon/event-streamex",
+      docs: [
+        # The main page in the docs
+        main: "EventStreamex",
+        extras: ["README.md"]
+      ]
     ]
   end
 

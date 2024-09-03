@@ -102,7 +102,7 @@ defmodule EventStreamex.EventListener do
 
   By default, we automatically subscribe to the `direct` and `unscoped` channels.
 
-  All events are received in `c:handle_info/2` callbacks with a message of this form:
+  All events are received in `c:Phoenix.LiveView.handle_info/2` callbacks with a message of this form:
 
   ```elixir
   {:on_insert | :on_delete | :on_update, :direct | [] | [{binary(), id()}], entity_change()}
@@ -132,7 +132,7 @@ defmodule EventStreamex.EventListener do
   end
   ```
 
-  The changes in the entity will be received in the `c:handle_info/2` callback
+  The changes in the entity will be received in the `c:Phoenix.LiveView.handle_info/2` callback
   with a message of this form:
 
   ```elixir
@@ -198,7 +198,7 @@ defmodule EventStreamex.EventListener do
       subscriptions: [:unscoped]
   ```
 
-  The changes in the entities will be received in the `c:handle_info/2` callback
+  The changes in the entities will be received in the `c:Phoenix.LiveView.handle_info/2` callback
   with a message of this form:
 
   ```elixir
@@ -276,7 +276,7 @@ defmodule EventStreamex.EventListener do
 
   Here, `comments` have a `post_id` field related to a `posts` entity.
 
-  You can also have several scopes for an entity (**The order matters for the matching in `c:handle_info/2`**):
+  You can also have several scopes for an entity (**The order matters for the matching in `c:Phoenix.LiveView.handle_info/2`**):
 
   ```elixir
   use EventStreamex.EventListener,
@@ -301,7 +301,7 @@ defmodule EventStreamex.EventListener do
   end
   ```
 
-  Events will be received in the `c:handle_info/2` callback, with messages of this form:
+  Events will be received in the `c:Phoenix.LiveView.handle_info/2` callback, with messages of this form:
 
   ```elixir
   {:on_insert | :on_update | :on_delete, [{"related_scoped_entity", scope_id}], entity_change()}
@@ -378,7 +378,7 @@ defmodule EventStreamex.EventListener do
 
   ## Entity change structure
 
-  The event received in the `c:handle_info/2` callbacks have information about
+  The event received in the `c:Phoenix.LiveView.handle_info/2` callbacks have information about
   the entity and its changes.
 
   Here is what the structure looks like:
