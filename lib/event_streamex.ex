@@ -80,6 +80,7 @@ defmodule EventStreamex do
       database: Application.get_env(:event_streamex, :database),
       durable_slot: Application.get_env(:event_streamex, :durable_slot),
       hostname: Application.get_env(:event_streamex, :hostname),
+      message_middleware: &WalEx.Replication.Publisher.process_message_sync/2,
       modules: schema_modules,
       name: Application.get_env(:event_streamex, :app_name),
       password: Application.get_env(:event_streamex, :password),
