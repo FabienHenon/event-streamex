@@ -4,11 +4,13 @@ defmodule EventStreamex.MixProject do
   def project do
     [
       app: :event_streamex,
+      description: "Add event streaming in your Elixir application, using PostgreSQL WAL",
       version: "1.0.0",
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
+      package: package(),
 
       # Docs
       name: "EventStreamex",
@@ -19,6 +21,13 @@ defmodule EventStreamex.MixProject do
         main: "EventStreamex",
         extras: ["README.md"]
       ]
+    ]
+  end
+
+  defp package() do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/FabienHenon/event-streamex"}
     ]
   end
 
