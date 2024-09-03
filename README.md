@@ -370,7 +370,7 @@ on_event(
 
 Although using event streaming with `EventStreamex` looks easy, why bother using event streaming in the first place?
 
-## The issue without event streaming
+### The issue without event streaming
 
 Let's say you have a `posts` entity which contains:
 
@@ -402,29 +402,29 @@ FROM posts p;
 But it has several flaws.
 Let's see them in more details.
 
-### Your queries will become slower and slower over time
+#### Your queries will become slower and slower over time
 
 Because subqueries are not free. They take more time to execute that a simple query with no join and subquery.
 
 So, the more posts and comments you have, the slower the query will be.
 
-### You will end up adding complexity in your queries
+#### You will end up adding complexity in your queries
 
 As your app evolves, you will probably create new entities related to your posts and comments.
 Thus, you will add more and more subqueries and joins to your queries, making them slower and harder to maintain...
 
-### Realtime will become a mess to maintain
+#### Realtime will become a mess to maintain
 
 If you want to handle realtime events like updating the number of comments when a new one is created it will be a mess to maintain overtime because you will end up subscribing to a lot of events as you link your posts to other entities.
 
 And you will probably forget to subscribe to some of the events making your app inconsistant (some features will be in realtime and other won't be).
 
-### Almost impossible to maintain recursivity
+#### Almost impossible to maintain recursivity
 
 If your comments can have subcomments it will be almost impossible
 to maintain the comments count because of the recursivity it implies.
 
-### Depending on entities not directly related to the base entity
+#### Depending on entities not directly related to the base entity
 
 Let's say you create another entity named `ratings` which saves each rating given to a specific comment.
 
@@ -442,7 +442,7 @@ so that users can see that a post has received a lot of useful comments.
 
 I don't even want to think about the query that would require...
 
-## Benefits from using event streaming
+### Benefits from using event streaming
 
 Let's come back to our `posts` and `comments`.
 Now let's imagine that instead of our subquery to count the comments we use
@@ -514,14 +514,14 @@ also delete the related `post_with_comments_counts` entity.
 
 As you can see, this `MERGE` query also uses a subquery, so why is it better than our first implementation?
 
-### This is a naive implementation
+#### This is a naive implementation
 
 The `query/3` macro is provided for simplicity.
 But you can also replace it by a function to do things as you think it's best (optimize the queries according to the type of event and entity received).
 
 This function will receive the event, allowing you to do whatever you want with it.
 
-### The query is executed in the background
+#### The query is executed in the background
 
 In our first example, the query was executed everytime someone wants to display the list of posts.
 
@@ -535,7 +535,7 @@ SELECT * FROM post_with_comments_counts;
 
 Which is simpler and faster than our former query.
 
-### Realtime is easy
+#### Realtime is easy
 
 You can use the module `EventStreamex.EventListener` to easily add realtime
 in your live view applications.
@@ -548,7 +548,7 @@ The `EventStreamex.EventListener`, now just has to listen to this pubsub process
 
 Everything, now, can be realtime, without beeing hard to maintain.
 
-### A better pattern to model your data
+#### A better pattern to model your data
 
 With this approach you keep your entities consistent and simple.
 And you create specialized entities for what you want to show in your views.
