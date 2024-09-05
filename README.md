@@ -612,6 +612,206 @@ Named, for instance: `user_with_profiles`, and listening to `users` and `user_pr
 
 This way, you keep your data and API consistent.
 
+## How to handle asynchronicity of entity creation
+
+Event streaming is nice, but it makes create/update/delete operations asynchronous for derived entities.
+Which can be a nightmare to handle correctly.
+
+Let's say you have a LiveView application showing a list of `post_with_comments_counts`, which is a derived entity from the `posts` entity, containing, in addition to `posts` fields, a `comments_count` field.
+
+From this view, we can also create a new post.
+But we don't create a `post_with_comments_counts` directly.
+Instead, we must create a `posts` entity.
+Which, in turn, will trigger the creation of the `post_with_comments_counts` using event streaming.
+
+What we want to do is to redirect to the post detail page when the post is
+created.
+
+But we have a problem!
+
+Because the creation of the `posts` entity is synchronous, we can redirect
+as soon as it is created.
+But that does not mean the `post_with_comments_counts` entity will be created already... while it's this entity we need to show.
+
+To handle this scenario and be able to display the `post_with_comments_counts` entity as soon as it is created we have 3 solutions:
+
+### Wait for the entity to be created before redirecting
+
+To ensure you redirect to an entity that exists, you can actualy wait for it
+to be created.
+
+In order to do so, you will have to listen to this entity to know when it's been created.
+
+You can use the `subscribe_entity/4` function for that matter.
+
+```elixir
+defmodule MyApp.PostLive.Index do
+  use MyApp, :live_view
+
+  use EventStreamex.EventListener,
+    schema: "post_with_comments_counts",
+    subscriptions: [:unscoped]
+
+  alias MyApp.Blog
+  alias MyApp.Blog.Post
+
+  @impl true
+  def mount(params, session, socket) do
+    {:ok, socket} = super(params, session, socket)
+
+    {:ok, stream(socket, :posts, Blog.list_posts())}
+  end
+
+  @impl true
+  def handle_params(params, url, socket) do
+    {_res, socket} = super(params, url, socket)
+
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  end
+
+  defp apply_action(socket, :new, _params) do
+    socket
+    |> assign(:page_title, "New Post")
+    |> assign(:post, %Post{})
+  end
+
+  defp apply_action(socket, :index, _params) do
+    socket
+    |> assign(:page_title, "Listing Posts")
+    |> assign(:post, nil)
+  end
+
+  @impl true
+  def handle_info({MyApp.PostLive.FormComponent, {:saved, post}}, socket) do
+    {:noreply,
+     socket
+     |> subscribe_entity("post_with_comments_counts", :direct, %{"id" => post.id})}
+  end
+
+  @impl true
+  def handle_info({:on_insert, :direct, "post_with_comments_counts", post}, socket) do
+    {:noreply,
+     socket
+     |> unsubscribe_entity("post_with_comments_counts", :direct)
+     |> push_navigate(to: "/posts/#{post.new_record.id}")}
+  end
+
+  @impl true
+  def handle_info({_, :direct, "post_with_comments_counts", _post}, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:on_insert, [], "post_with_comments_counts", post}, socket) do
+    {:noreply,
+     socket
+     |> stream_insert(:posts, post.new_record)
+  end
+
+  @impl true
+  def handle_info({:on_update, [], "post_with_comments_counts", post}, socket) do
+    {:noreply,
+     socket
+     |> stream_insert(:posts, post.new_record)
+  end
+
+  @impl true
+  def handle_info({:on_delete, [], "post_with_comments_counts", post}, socket) do
+    {:noreply,
+     socket
+     |> stream_delete(:posts, post.old_record)
+  end
+end
+```
+
+Here, our live view listens for `:unscoped` `post_with_comments_counts` entity for the `index` view in realtime (nothing new).
+
+This code is more interesting:
+
+```elixir
+@impl true
+def handle_info({MyApp.PostLive.FormComponent, {:saved, post}}, socket) do
+  {:noreply,
+    socket
+    |> subscribe_entity("post_with_comments_counts", :direct, %{"id" => post.id})}
+end
+```
+
+This function gets called when a `posts` has been created.
+And inside it, instead of redirecting immediately, we call the `subscribe_entity/4` function to listen for `post_with_comments_counts` with a specific ID. The ID of the newly created post.
+
+That means that as soon as this `post_with_comments_counts` entity will be created, we will be notified:
+
+```elixir
+@impl true
+def handle_info({:on_insert, :direct, "post_with_comments_counts", post}, socket) do
+  {:noreply,
+    socket
+    |> unsubscribe_entity("post_with_comments_counts", :direct)
+    |> push_navigate(to: "/posts/#{post.new_record.id}")}
+end
+```
+
+When the entity is created, we unsubscribe from the channel (this is optional is it will automatically unsubscribe as soon as the live view terminates), and we redirect to the detail page.
+
+And we know, at this moment, the `post_with_comments_counts` entity will exist.
+
+### Handle entity not found
+
+Another solution is to redirect immediately without waiting for the `post_with_comments_counts` to be created, and by handling the case where the entity is not found yet.
+
+```elixir
+defmodule MyApp.PostLive.Show do
+  use MyApp, :live_view
+
+  use EventStreamex.EventListener,
+    schema: "post_with_comments_counts",
+    subscriptions: [:direct]
+
+  alias MyApp.Blog
+
+  @impl true
+  def mount(params, session, socket) do
+    super(params, session, socket)
+  end
+
+  @impl true
+  def handle_params(%{"id" => id} = params, url, socket) do
+    {_res, socket} = super(params, url, socket)
+
+    post = Blog.get_post(id)
+
+    {:noreply,
+     socket
+     |> assign(:id, id)
+     |> assign(:post, post)
+  end
+
+  @impl true
+  def handle_info({:on_insert, :direct, "post_with_comments_counts", post}, socket) do
+    {:noreply,
+     socket
+     |> assign(:post, post.new_record)}
+  end
+
+  @impl true
+  def handle_info({:on_update, :direct, "post_with_comments_counts", post}, socket) do
+    {:noreply,
+     socket
+     |> assign(:post, post.new_record)}
+  end
+
+  @impl true
+  def handle_info({:on_delete, :direct, "post_with_comments_counts", _post}, socket) do
+    {:noreply, socket |> put_flash(:warning, "Ce post vient d'être supprimé")}
+  end
+end
+```
+
+Here we fecth the entity (but without triggering an exception if it does not exist), and we replace it if we receive the `:on_insert` event for that entity.
+
+You will just have to ensure your view shows a loader or something until the entity is created.
+
 ## Tests
 
 To test the package you can run:
