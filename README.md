@@ -136,21 +136,21 @@ defmodule MyApp.PostLive.Index do
   end
 
   @impl true
-  def handle_info({:on_insert, [], post}, socket) do
+  def handle_info({:on_insert, [], "post_with_comments_counts", post}, socket) do
     {:noreply,
      socket
      |> stream_insert(:posts, post.new_record)
   end
 
   @impl true
-  def handle_info({:on_update, [], post}, socket) do
+  def handle_info({:on_update, [], "post_with_comments_counts", post}, socket) do
     {:noreply,
      socket
      |> stream_insert(:posts, post.new_record)
   end
 
   @impl true
-  def handle_info({:on_delete, [], post}, socket) do
+  def handle_info({:on_delete, [], "post_with_comments_counts", post}, socket) do
     {:noreply,
      socket
      |> stream_delete(:posts, post.old_record)

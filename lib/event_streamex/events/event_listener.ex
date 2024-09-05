@@ -42,7 +42,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_insert, [{"posts", post_id}], comment},
+          {:on_insert, [{"posts", post_id}], "comments", comment},
           %{assigns: %{post_id: post_id}} = socket
         ) do
       {:noreply,
@@ -52,7 +52,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_update, [{"posts", post_id}], comment},
+          {:on_update, [{"posts", post_id}], "comments", comment},
           %{assigns: %{post_id: post_id}} = socket
         ) do
       {:noreply,
@@ -62,7 +62,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_delete, [{"posts", post_id}], comment},
+          {:on_delete, [{"posts", post_id}], "comments", comment},
           %{assigns: %{post_id: post_id}} = socket
         ) do
       {:noreply,
@@ -80,7 +80,7 @@ defmodule EventStreamex.EventListener do
   ## How it works
 
   `use EventStreamex.EventListener` will do the "magic" by subscribing to the entity
-  changes in `c:Phoenix.LiveView.mount/3`, `c:Phoenix.LiveView.terminate/3` and `c:Phoenix.LiveView.handle_params/3`
+  changes in `Phoenix.LiveView.mount/3`, `Phoenix.LiveView.terminate/3` and `Phoenix.LiveView.handle_params/3`
   callbacks.
 
   That means that is you override these callbacks you have to call the `super` function
@@ -102,10 +102,10 @@ defmodule EventStreamex.EventListener do
 
   By default, we automatically subscribe to the `direct` and `unscoped` channels.
 
-  All events are received in `c:Phoenix.LiveView.handle_info/2` callbacks with a message of this form:
+  All events are received in `Phoenix.LiveView.handle_info/2` callbacks with a message of this form:
 
   ```elixir
-  {:on_insert | :on_delete | :on_update, :direct | [] | [{binary(), id()}], entity_change()}
+  {:on_insert | :on_delete | :on_update, :direct | [] | [{binary(), id()}], binary(), entity_change()}
   ```
 
   *More information about each kind of message in the subsections below*
@@ -132,11 +132,11 @@ defmodule EventStreamex.EventListener do
   end
   ```
 
-  The changes in the entity will be received in the `c:Phoenix.LiveView.handle_info/2` callback
+  The changes in the entity will be received in the `Phoenix.LiveView.handle_info/2` callback
   with a message of this form:
 
   ```elixir
-  {:on_insert | :on_update | :on_delete, :direct, entity_change()}
+  {:on_insert | :on_update | :on_delete, :direct, binary(), entity_change()}
   ```
 
   Here is an example:
@@ -167,20 +167,20 @@ defmodule EventStreamex.EventListener do
     end
 
     @impl true
-    def handle_info({:on_insert, :direct, _comment}, socket) do
+    def handle_info({:on_insert, :direct, "comments", _comment}, socket) do
       # Should never happen because the entity already exists
       {:noreply, socket}
     end
 
     @impl true
-    def handle_info({:on_update, :direct, comment}, socket) do
+    def handle_info({:on_update, :direct, "comments", comment}, socket) do
       {:noreply,
       socket
       |> assign(:comment, comment.new_record)
     end
 
     @impl true
-    def handle_info({:on_delete, :direct, _comment}, socket) do
+    def handle_info({:on_delete, :direct, "comments", _comment}, socket) do
       # Do some redirection stuff eventually
       {:noreply, socket |> put_flash(:warning, "This comment has been deleted")}
     end
@@ -198,11 +198,11 @@ defmodule EventStreamex.EventListener do
       subscriptions: [:unscoped]
   ```
 
-  The changes in the entities will be received in the `c:Phoenix.LiveView.handle_info/2` callback
+  The changes in the entities will be received in the `Phoenix.LiveView.handle_info/2` callback
   with a message of this form:
 
   ```elixir
-  {:on_insert | :on_update | :on_delete, [], entity_change()}
+  {:on_insert | :on_update | :on_delete, [], binary(), entity_change()}
   ```
 
   Here is an example:
@@ -234,7 +234,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_insert, [], comment}, socket
+          {:on_insert, [], "comments", comment}, socket
         ) do
       {:noreply,
       socket
@@ -243,7 +243,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_update, [], comment}, socket
+          {:on_update, [], "comments", comment}, socket
         ) do
       {:noreply,
       socket
@@ -252,7 +252,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_delete, [], comment}, socket
+          {:on_delete, [],"comments",  comment}, socket
         ) do
       {:noreply,
       socket
@@ -276,7 +276,7 @@ defmodule EventStreamex.EventListener do
 
   Here, `comments` have a `post_id` field related to a `posts` entity.
 
-  You can also have several scopes for an entity (**The order matters for the matching in `c:Phoenix.LiveView.handle_info/2`**):
+  You can also have several scopes for an entity (**The order matters for the matching in `Phoenix.LiveView.handle_info/2`**):
 
   ```elixir
   use EventStreamex.EventListener,
@@ -304,13 +304,13 @@ defmodule EventStreamex.EventListener do
   Events will be received in the `c:Phoenix.LiveView.handle_info/2` callback, with messages of this form:
 
   ```elixir
-  {:on_insert | :on_update | :on_delete, [{"related_scoped_entity", scope_id}], entity_change()}
+  {:on_insert | :on_update | :on_delete, [{"related_scoped_entity", scope_id}], binary(), entity_change()}
   ```
 
   For instance, with our previous example, an insert event message will look like this:
 
   ```elixir
-  {:on_insert, [{"organizations", org_id}, {"posts", post_id}], entity_change}
+  {:on_insert, [{"organizations", org_id}, {"posts", post_id}], "comments", entity_change}
   ```
 
   **The order of scopes will be the same as the one you specified above in the `use`**.
@@ -346,7 +346,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_insert, [{"posts", post_id}], comment},
+          {:on_insert, [{"posts", post_id}], "comments", comment},
           %{assigns: %{post_id: post_id}} = socket
         ) do
       {:noreply,
@@ -356,7 +356,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_update, [{"posts", post_id}], comment},
+          {:on_update, [{"posts", post_id}], "comments", comment},
           %{assigns: %{post_id: post_id}} = socket
         ) do
       {:noreply,
@@ -366,7 +366,7 @@ defmodule EventStreamex.EventListener do
 
     @impl true
     def handle_info(
-          {:on_delete, [{"posts", post_id}], comment},
+          {:on_delete, [{"posts", post_id}], "comments", comment},
           %{assigns: %{post_id: post_id}} = socket
         ) do
       {:noreply,
@@ -378,7 +378,7 @@ defmodule EventStreamex.EventListener do
 
   ## Entity change structure
 
-  The event received in the `c:Phoenix.LiveView.handle_info/2` callbacks have information about
+  The event received in the `Phoenix.LiveView.handle_info/2` callbacks have information about
   the entity and its changes.
 
   Here is what the structure looks like:
@@ -500,9 +500,9 @@ defmodule EventStreamex.EventListener do
   The unsubscribe from events is done automatically in the `c:Phoenix.LiveView.terminate/3` callback.
   You do not have anything to do except for calling the `super` function if you override this callback.
 
-  ## Handling subscriptions manually
+  ## Handling subscriptions later
 
-  If you need, for any reason, to handle subscriptions manually,
+  If you need, for any reason, to handle subscriptions at another moment than the `mount` and `handle_params` callbacks,
   we provide the `handle_subscriptions/2` function.
 
   This can be useful if the parameters used for scoped channels
@@ -545,7 +545,70 @@ defmodule EventStreamex.EventListener do
   the `EventListener` to handle the subscriptions as I do it manually.
 
   You don't have to handle the unsubscribe either because it will be done for you in the
-  `c:Phoenix.LiveView.terminate/3` callback.
+  `Phoenix.LiveView.terminate/3` callback.
+
+  ## Subscribing to other entities' events
+
+  Let's say you display posts and handle their creation.
+  And when a new post is created you want to redirect to the detail page
+  of this new post.
+  But, the enitty used for the detail of this post is a derived entity from
+  an operator.
+  Thus, you can't be sure the entity will exist when you redirect to its detail page
+  because of this asynchronicity of the event streaming architecture.
+
+  So you would like to listen for this entity beeing created.
+  Hopefully, you know its ID because you just created the post and this derived
+  entity uses the same ID.
+
+  So you can call the `subscribe_entiy/4` function to listen for the events coming from
+  this derived entity.
+
+  ```elixir
+  subscribe_entity(socket, "post_with_comments_count", :direct, %{"id" => post_id})
+  ```
+
+  ### Params
+
+  * `socket`: The socket
+  * `entity_name`: The entity name to listen to as a string
+  * `subscription`: The kind of channel you want to listen to (these are the same as for the module configuration: `:direct`, `:unscoped`, `%{scopes: []}`)
+  * `params`: A map with the parameters needed for `:direct` and `:scopes` scopes.
+
+  ### Return value
+
+  The updated `socket`
+
+  ### Received events
+
+  Events are received the same way as other events but related to the entity:
+
+  ```elixir
+  @impl true
+  def handle_info({:on_insert, :direct, "post_with_comments_count", post}, socket) do
+    {:noreply, socket |> push_navigate(to: "/posts/\#{post.id}")}
+  end
+  ```
+
+  ## Unsubscribing to other entities' events
+
+  Use the function `unsubscribe_entity/3` to manually unsubscribe from an event's events.
+
+  ```elixir
+  unsubscribe_entity(socket, "post_with_comments_count", :direct)
+  ```
+
+  The params will be the same used for subscription so no need to pass them again.
+
+  ### Params
+
+  * `socket`: The socket
+  * `entity_name`: The name of the entity to stop linstening
+  * `subscription`: The kind of channel to stop listening to (these are the same as for the module configuration: `:direct`, `:unscoped`, `%{scopes: []}`)
+
+  ### Return value
+
+  The updated socket
 
   ## `use` params
 
@@ -593,21 +656,28 @@ defmodule EventStreamex.EventListener do
       end
 
       def terminate(_reason, socket) do
-        handle_subscriptions(
-          fn channel ->
-            [adapter: pubsub_adapter, name: pubsub] =
-              unquote(application).get_env(:event_streamex, :pubsub)
+        socket.private
+        |> subscribed_entities()
+        |> Enum.reduce(socket, fn entity, s ->
+          {_subscription_state, event_params} =
+            get_subscribe_state(s.private, entity)
 
-            pubsub_adapter.unsubscribe(pubsub, channel)
-          end,
-          :unsubscribed,
-          socket,
-          unquote(table_name),
-          unquote(subscriptions),
-          unquote(source_modules),
-          Map.get(socket.private, :event_params, %{}),
-          &Phoenix.LiveView.put_private/3
-        )
+          handle_subscriptions(
+            fn channel ->
+              [adapter: pubsub_adapter, name: pubsub] =
+                unquote(application).get_env(:event_streamex, :pubsub)
+
+              pubsub_adapter.unsubscribe(pubsub, channel)
+            end,
+            :unsubscribed,
+            s,
+            entity,
+            get_entity_current_subscriptions(s.private, entity),
+            unquote(source_modules),
+            event_params,
+            &Phoenix.LiveView.put_private/3
+          )
+        end)
       end
 
       def handle_params(params, _url, socket) do
@@ -630,19 +700,19 @@ defmodule EventStreamex.EventListener do
       end
 
       def handle_info(
-            {:on_insert, _scope, _item},
+            {:on_insert, _scope, _entity, _item},
             socket
           ),
           do: {:noreply, socket}
 
       def handle_info(
-            {:on_update, _scope, _item},
+            {:on_update, _scope, _entity, _item},
             socket
           ),
           do: {:noreply, socket}
 
       def handle_info(
-            {:on_delete, _scope, _item},
+            {:on_delete, _scope, _entity, _item},
             socket
           ),
           do: {:noreply, socket}
@@ -709,6 +779,112 @@ defmodule EventStreamex.EventListener do
           &Phoenix.LiveView.put_private/3
         )
       end
+
+      @doc """
+      Subscribes to another entity's events.
+
+      Let's say you display posts and handle their creation.
+      And when a new post is created you want to redirect to the detail page
+      of this new post.
+      But, the enitty used for the detail of this post is a derived entity from
+      an operator.
+      Thus, you can't be sure the entity will exist when you redirect to its detail page
+      because of this asynchronicity of the event streaming architecture.
+
+      So you would like to listen for this entity beeing created.
+      Hopefully, you know its ID because you just created the post and this derived
+      entity uses the same ID.
+
+      So you can call the `subscribe_entiy/4` function to listen for the events coming from
+      this derived entity.
+
+      ```elixir
+      subscribe_entity(socket, "post_with_comments_count", :direct, %{"id" => post_id})
+      ```
+
+      ## Params
+
+      * `socket`: The socket
+      * `entity_name`: The entity name to listen to as a string
+      * `subscription`: The kind of channel you want to listen to (these are the same as for the module configuration: `:direct`, `:unscoped`, `%{scopes: []}`)
+      * `params`: A map with the parameters needed for `:direct` and `:scopes` scopes.
+
+      ## Return value
+
+      The updated `socket`
+
+      ## Received events
+
+      Events are received the same way as other events but related to the entity:
+
+      ```elixir
+      @impl true
+      def handle_info({:on_insert, :direct, "post_with_comments_count", post}, socket) do
+        {:noreply, socket |> push_navigate(to: "/posts/\#{post.id}")}
+      end
+      ```
+
+      """
+      def subscribe_entity(
+            socket,
+            entity_name,
+            subscription,
+            params \\ %{}
+          ) do
+        handle_subscriptions(
+          fn channel ->
+            [adapter: pubsub_adapter, name: pubsub] =
+              unquote(application).get_env(:event_streamex, :pubsub)
+
+            pubsub_adapter.subscribe(pubsub, channel)
+          end,
+          :subscribed,
+          socket,
+          entity_name,
+          [subscription],
+          unquote(source_modules),
+          params,
+          &Phoenix.LiveView.put_private/3
+        )
+      end
+
+      @doc """
+      Manually unsubscribes from an event's events.
+
+      ## Params
+
+      * `socket`: The socket
+      * `entity_name`: The name of the entity to stop linstening
+      * `subscription`: The kind of channel to stop listening to (these are the same as for the module configuration: `:direct`, `:unscoped`, `%{scopes: []}`)
+
+      ## Return value
+
+      The updated socket
+      """
+      def unsubscribe_entity(
+            socket,
+            entity_name,
+            subscription
+          ) do
+        {_subscription_state, event_params} =
+          get_subscribe_state(socket.private, entity_name)
+
+        handle_subscriptions(
+          fn channel ->
+            [adapter: pubsub_adapter, name: pubsub] =
+              unquote(application).get_env(:event_streamex, :pubsub)
+
+            pubsub_adapter.unsubscribe(pubsub, channel)
+          end,
+          :unsubscribed,
+          socket,
+          entity_name,
+          [subscription],
+          unquote(source_modules),
+          event_params,
+          &Phoenix.LiveView.put_private/3
+        )
+      end
     end
   end
 
@@ -748,7 +924,7 @@ defmodule EventStreamex.EventListener do
          _params,
          put_private
        ) do
-    subscription_state = Map.get(socket.private, :subscribed?, default_subscribed_state())
+    {subscription_state, event_params} = get_subscribe_state(socket.private, table_name)
 
     if check_subscribed_status(subscription_state.unscoped, type) do
       Logger.debug("#{source_modules} #{inspect(type)} channel: #{table_name}")
@@ -757,9 +933,11 @@ defmodule EventStreamex.EventListener do
       subscriber.("#{table_name}")
 
       socket
-      |> put_private.(
-        :subscribed?,
-        set_unscoped_subscription_state(subscription_state, type)
+      |> update_subscribe_state(
+        put_private,
+        table_name,
+        set_unscoped_subscription_state(subscription_state, type),
+        event_params
       )
     else
       socket
@@ -777,7 +955,7 @@ defmodule EventStreamex.EventListener do
          %{"id" => id} = params,
          put_private
        ) do
-    subscription_state = Map.get(socket.private, :subscribed?, default_subscribed_state())
+    {subscription_state, event_params} = get_subscribe_state(socket.private, table_name)
 
     if check_subscribed_status(subscription_state.direct, type) do
       Logger.debug("#{source_modules} #{inspect(type)} channel: #{table_name}/#{id}")
@@ -786,13 +964,11 @@ defmodule EventStreamex.EventListener do
       subscriber.("#{table_name}/#{id}")
 
       socket
-      |> put_private.(
-        :subscribed?,
-        set_direct_subscription_state(subscription_state, type)
-      )
-      |> put_private.(
-        :event_params,
-        update_event_params(Map.get(socket.private, :event_params, %{}), params, ["id"])
+      |> update_subscribe_state(
+        put_private,
+        table_name,
+        set_direct_subscription_state(subscription_state, type),
+        update_event_params(event_params, params, ["id"])
       )
     else
       socket
@@ -824,7 +1000,7 @@ defmodule EventStreamex.EventListener do
          params,
          put_private
        ) do
-    subscription_state = Map.get(socket.private, :subscribed?, default_subscribed_state())
+    {subscription_state, event_params} = get_subscribe_state(socket.private, table_name)
 
     if check_subscribed_status(
          is_subscribed_to_scope?(subscription_state, %{scopes: scopes}),
@@ -849,14 +1025,12 @@ defmodule EventStreamex.EventListener do
         subscriber.(path)
 
         socket
-        |> put_private.(
-          :subscribed?,
-          set_scoped_subscription_state(subscription_state, %{scopes: scopes}, type)
-        )
-        |> put_private.(
-          :event_params,
+        |> update_subscribe_state(
+          put_private,
+          table_name,
+          set_scoped_subscription_state(subscription_state, %{scopes: scopes}, type),
           update_event_params(
-            Map.get(socket.private, :event_params, %{}),
+            event_params,
             params,
             scopes |> Enum.map(&Atom.to_string(elem(&1, 0)))
           )
@@ -867,6 +1041,43 @@ defmodule EventStreamex.EventListener do
     else
       socket
     end
+  end
+
+  @doc false
+  defp handle_subscription(
+         _subscriber,
+         _type,
+         socket,
+         _table_name,
+         _sub_type,
+         _source_modules,
+         _params,
+         _put_private
+       ) do
+    socket
+  end
+
+  @doc false
+  def get_subscribe_state(private, entity) do
+    entity_state =
+      private
+      |> Map.get(:subscriptions, %{})
+      |> Map.get(entity, %{subscribed?: default_subscribed_state(), event_params: %{}})
+
+    {Map.get(entity_state, :subscribed?, default_subscribed_state()),
+     Map.get(entity_state, :event_params, %{})}
+  end
+
+  @doc false
+  def update_subscribe_state(socket, put_private, entity, new_state, event_params) do
+    entity_state = %{subscribed?: new_state, event_params: event_params}
+
+    subs =
+      socket.private
+      |> Map.get(:subscriptions, %{})
+
+    socket
+    |> put_private.(:subscriptions, subs |> Map.put(entity, entity_state))
   end
 
   @doc false
@@ -906,10 +1117,45 @@ defmodule EventStreamex.EventListener do
   end
 
   @doc false
+  defp deserialize_scopes(scopes) do
+    %{
+      scopes:
+        scopes
+        |> String.split("/")
+        |> Enum.map(fn scope ->
+          [field | [entity | []]] = scope |> String.split(":")
+
+          {String.to_atom(field), entity}
+        end)
+    }
+  end
+
+  @doc false
   def update_event_params(event_params, params, keys) do
     Enum.reduce(keys, event_params, &Map.put(&2, &1, Map.get(params, &1, nil)))
   end
 
   defp check_subscribed_status(subscribed?, :subscribed), do: not subscribed?
   defp check_subscribed_status(subscribed?, :unsubscribed), do: subscribed?
+
+  @doc false
+  def subscribed_entities(private) do
+    private
+    |> Map.get(:subscriptions, %{})
+    |> Map.keys()
+  end
+
+  @doc false
+  def get_entity_current_subscriptions(private, entity) do
+    {subscription_state, _params} = get_subscribe_state(private, entity)
+
+    subscription_state
+    |> Map.to_list()
+    |> Enum.filter(&elem(&1, 1))
+    |> Enum.map(fn
+      {:direct, _} -> :direct
+      {:unscoped, _} -> :unscoped
+      {scopes, _} -> deserialize_scopes(scopes)
+    end)
+  end
 end

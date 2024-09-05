@@ -266,7 +266,7 @@ defmodule EventStreamex.Events do
     pubsub_adapter.broadcast(
       pubsub,
       "#{table_name}",
-      {event_name, [], event}
+      {event_name, [], table_name, event}
     )
 
     Logger.debug("#{table_name} broacasted in channel: #{table_name}/#{used_record.id}")
@@ -275,7 +275,7 @@ defmodule EventStreamex.Events do
     pubsub_adapter.broadcast(
       pubsub,
       "#{table_name}/#{used_record.id}",
-      {event_name, :direct, event}
+      {event_name, :direct, table_name, event}
     )
 
     # Other scoped channels
@@ -291,7 +291,7 @@ defmodule EventStreamex.Events do
         "#{scopes |> Enum.map(&"#{elem(&1, 1)}/#{Map.get(used_record, elem(&1, 0))}") |> Enum.join("/")}/#{table_name}",
         {event_name,
          scopes
-         |> Enum.map(&{elem(&1, 1), Map.get(used_record, elem(&1, 0))}), event}
+         |> Enum.map(&{elem(&1, 1), Map.get(used_record, elem(&1, 0))}), table_name, event}
       )
     end)
   end

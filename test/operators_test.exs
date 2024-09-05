@@ -317,6 +317,7 @@ defmodule OperatorsTest do
       assert_receive {"FilteredOperator", :delete, "filtered_operators"}, 1000
     end
 
+    @tag :hello
     test "when entity is not listened" do
       Utils.PubSub.subscribe(:adapter_name, "FilteredOperator")
 
@@ -556,7 +557,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "base_entities1",
                       %WalEx.Event{
                         name: :base_entities1,
                         type: :insert,
@@ -579,7 +580,7 @@ defmodule OperatorsTest do
                       }},
                      1000
 
-      refute_receive {:on_insert, :direct,
+      refute_receive {:on_insert, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities
                       }},
@@ -593,7 +594,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "base_entities2",
                       %WalEx.Event{
                         name: :base_entities2,
                         type: :insert,
@@ -616,7 +617,7 @@ defmodule OperatorsTest do
                       }},
                      1000
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :insert,
@@ -656,7 +657,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :update,
@@ -687,7 +688,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :update,
@@ -726,7 +727,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :insert,
@@ -758,7 +759,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :update,
@@ -799,7 +800,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :insert,
@@ -831,7 +832,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :update,
@@ -864,7 +865,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_delete, :direct,
+      assert_receive {:on_delete, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :delete,
@@ -903,7 +904,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :insert,
@@ -935,7 +936,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :update,
@@ -968,7 +969,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "merged_entities",
                       %WalEx.Event{
                         name: :merged_entities,
                         type: :update,
@@ -1018,7 +1019,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "complex_entities",
                       %WalEx.Event{
                         name: :complex_entities,
                         type: :insert,
@@ -1050,7 +1051,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "complex_entities",
                       %WalEx.Event{
                         name: :complex_entities,
                         type: :update,
@@ -1084,7 +1085,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "complex_entities",
                       %WalEx.Event{
                         name: :complex_entities,
                         type: :update,
@@ -1117,7 +1118,7 @@ defmodule OperatorsTest do
                """)
              )
 
-      assert_receive {:on_delete, :direct,
+      assert_receive {:on_delete, :direct, "complex_entities",
                       %WalEx.Event{
                         name: :complex_entities,
                         type: :delete,

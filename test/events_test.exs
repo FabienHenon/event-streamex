@@ -78,7 +78,7 @@ defmodule EventsTest do
                })
              )
 
-      assert_receive {:on_insert, [],
+      assert_receive {:on_insert, [], "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :insert,
@@ -102,7 +102,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:on_insert, :direct,
+      assert_receive {:on_insert, :direct, "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :insert,
@@ -126,7 +126,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:on_insert, [{"posts", "123"}],
+      assert_receive {:on_insert, [{"posts", "123"}], "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :insert,
@@ -222,7 +222,7 @@ defmodule EventsTest do
                })
              )
 
-      assert_receive {:on_update, [],
+      assert_receive {:on_update, [], "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :update,
@@ -255,7 +255,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:on_update, :direct,
+      assert_receive {:on_update, :direct, "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :update,
@@ -288,7 +288,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:on_update, [{"posts", "123"}],
+      assert_receive {:on_update, [{"posts", "123"}], "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :update,
@@ -397,7 +397,7 @@ defmodule EventsTest do
                })
              )
 
-      assert_receive {:on_delete, [],
+      assert_receive {:on_delete, [], "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :delete,
@@ -421,7 +421,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:on_delete, :direct,
+      assert_receive {:on_delete, :direct, "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :delete,
@@ -445,7 +445,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:on_delete, [{"posts", "123"}],
+      assert_receive {:on_delete, [{"posts", "123"}], "comments",
                       %WalEx.Event{
                         name: :comments,
                         type: :delete,
@@ -536,7 +536,7 @@ defmodule EventsTest do
                })
              )
 
-      refute_receive {:on_delete, _, _}, 1000
+      refute_receive {:on_delete, _, _, _}, 1000
 
       refute_receive {:process_event, _}, 1000
     end
@@ -587,7 +587,7 @@ defmodule EventsTest do
                })
              )
 
-      refute_receive {:on_delete, _, _}, 1000
+      refute_receive {:on_delete, _, _, _}, 1000
 
       refute_receive {:process_event, _}, 1000
     end
