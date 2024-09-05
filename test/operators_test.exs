@@ -317,7 +317,6 @@ defmodule OperatorsTest do
       assert_receive {"FilteredOperator", :delete, "filtered_operators"}, 1000
     end
 
-    @tag :hello
     test "when entity is not listened" do
       Utils.PubSub.subscribe(:adapter_name, "FilteredOperator")
 

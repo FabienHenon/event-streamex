@@ -1,4 +1,4 @@
-defmodule DbAdapterTest do
+defmodule QueueDbAdapterTest do
   use ExUnit.Case, async: false
 
   alias EventStreamex.Operators.Queue.DbAdapter

@@ -67,9 +67,9 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
           new_record      JSONB,
           old_record      JSONB,
           changes         JSONB,
-          timestamp       TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
+          timestamp       TIMESTAMP WITHOUT TIME ZONE NOT NULL,
           lsn             VARCHAR(255) NOT NULL,
-          inserted_at     TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL
+          inserted_at     TIMESTAMP WITHOUT TIME ZONE NOT NULL
         )
         """,
         []
