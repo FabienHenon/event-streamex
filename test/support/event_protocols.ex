@@ -61,7 +61,7 @@ defmodule EventProtocols do
       schema: "long_operators",
       module_name: "TestOperators"
 
-    defstruct([:id, :msg])
+    defstruct([:id, :msg, :updated_at])
   end
 
   defmodule BaseEntity1OperatorEvent do

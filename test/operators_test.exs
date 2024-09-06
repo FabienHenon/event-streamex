@@ -401,6 +401,9 @@ defmodule OperatorsTest do
     test "when several events are enqueued" do
       Utils.PubSub.subscribe(:adapter_name, "FilteredOperator")
       Utils.PubSub.subscribe(:adapter_name, "LongOperator")
+      Utils.PubSub.subscribe(:adapter_name, "EntityProcessedOperator")
+
+      datetime = DateTime.utc_now()
 
       assert match?(
                :ok,
@@ -423,11 +426,18 @@ defmodule OperatorsTest do
                            name: "msg",
                            type: "varchar",
                            type_modifier: nil
+                         },
+                         %WalEx.Decoder.Messages.Relation.Column{
+                           flags: nil,
+                           name: "updated_at",
+                           type: "datetime",
+                           type_modifier: nil
                          }
                        ],
                        record: %{
                          id: "89",
-                         msg: "Hello"
+                         msg: "Hello",
+                         updated_at: datetime
                        },
                        commit_timestamp: 0,
                        lsn: "0/0"
@@ -476,6 +486,8 @@ defmodule OperatorsTest do
 
       assert_receive {"LongOperator", :pid, pid}, 1000
       refute_receive {"LongOperator", :done}, 1000
+      refute_receive {"OtherLongOperator", :pid, _pid2}, 1000
+      refute_receive {"OtherLongOperator", :done}, 1000
       refute_receive {"FilteredOperator", :insert, "filtered_operators"}, 1000
 
       assert match?(
@@ -491,9 +503,47 @@ defmodule OperatorsTest do
                        db: "postgres",
                        schema: "public",
                        table: "long_operators",
-                       columns: %{id: "integer", msg: "varchar"}
+                       columns: %{id: "integer", msg: "varchar", updated_at: "datetime"}
                      },
-                     new_record: %{id: "89", msg: "Hello"},
+                     new_record: %{id: "89", msg: "Hello", updated_at: ^datetime},
+                     old_record: nil,
+                     changes: nil,
+                     timestamp: 0,
+                     lsn: "0/0"
+                   }}},
+                 {_uuid1_2,
+                  {OperatorProtocols.OtherLongOperator,
+                   %WalEx.Event{
+                     name: :long_operators,
+                     type: :insert,
+                     source: %WalEx.Event.Source{
+                       name: "WalEx",
+                       version: "4.1.0",
+                       db: "postgres",
+                       schema: "public",
+                       table: "long_operators",
+                       columns: %{id: "integer", msg: "varchar", updated_at: "datetime"}
+                     },
+                     new_record: %{id: "89", msg: "Hello", updated_at: ^datetime},
+                     old_record: nil,
+                     changes: nil,
+                     timestamp: 0,
+                     lsn: "0/0"
+                   }}},
+                 {_uuid1_1,
+                  {EventStreamex.Operators.EntityProcessedOperator,
+                   %WalEx.Event{
+                     name: :long_operators,
+                     type: :insert,
+                     source: %WalEx.Event.Source{
+                       name: "WalEx",
+                       version: "4.1.0",
+                       db: "postgres",
+                       schema: "public",
+                       table: "long_operators",
+                       columns: %{id: "integer", msg: "varchar", updated_at: "datetime"}
+                     },
+                     new_record: %{id: "89", msg: "Hello", updated_at: ^datetime},
                      old_record: nil,
                      changes: nil,
                      timestamp: 0,
@@ -517,14 +567,59 @@ defmodule OperatorsTest do
                      changes: nil,
                      timestamp: 0,
                      lsn: "0/0"
+                   }}},
+                 {_uuid2_2,
+                  {EventStreamex.Operators.EntityProcessedOperator,
+                   %WalEx.Event{
+                     name: :filtered_operators,
+                     type: :insert,
+                     source: %WalEx.Event.Source{
+                       name: "WalEx",
+                       version: "4.1.0",
+                       db: "postgres",
+                       schema: "public",
+                       table: "filtered_operators",
+                       columns: %{id: "integer", msg: "varchar"}
+                     },
+                     new_record: %{id: "89", msg: "Hello"},
+                     old_record: nil,
+                     changes: nil,
+                     timestamp: 0,
+                     lsn: "0/0"
                    }}}
                ],
                EventStreamex.Operators.Queue.get_queue()
              )
 
+      refute_receive {"processed", "long_operators", _timestamp}, 1000
+      assert EventStreamex.Operators.ProcessStatus.last_processed("long_operators") == nil
+      assert EventStreamex.Operators.ProcessStatus.last_processed("filtered_operators") == nil
+
       Process.send(pid, :continue, [])
 
       assert_receive {"LongOperator", :done}, 1000
+
+      assert_receive {"OtherLongOperator", :pid, pid2}, 1000
+      refute_receive {"OtherLongOperator", :done}, 1000
+
+      refute_receive {"processed", "long_operators", _timestamp}, 1000
+
+      assert EventStreamex.Operators.ProcessStatus.last_processed("long_operators") == nil
+      assert EventStreamex.Operators.ProcessStatus.last_processed("filtered_operators") == nil
+
+      Process.send(pid2, :continue, [])
+
+      assert_receive {"OtherLongOperator", :done}, 1000
+
+      assert_receive {"processed", "long_operators", _timestamp}, 1000
+
+      assert EventStreamex.Operators.ProcessStatus.last_processed("long_operators") ==
+               DateTime.to_unix(datetime, :microsecond)
+
+      assert_receive {"processed", "filtered_operators", _timestamp}, 1000
+
+      assert EventStreamex.Operators.ProcessStatus.last_processed("filtered_operators") == nil
+
       assert_receive {"FilteredOperator", :insert, "filtered_operators"}, 1000
     end
   end

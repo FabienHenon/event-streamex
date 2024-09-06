@@ -42,6 +42,8 @@ config :event_streamex,
   operator_queue_min_restart_time: 500,
   password: "postgres",
   port: "5432",
+  process_status_entity_field: :updated_at,
+  process_status_storage_adapter: {EventStreamex.Operators.ProcessStatus.DbAdapter, []},
   publication: "events",
   pubsub: [adapter: Phoenix.PubSub, name: nil],
   queue_storage_adapter: {EventStreamex.Operators.Queue.DbAdapter, []},
@@ -61,6 +63,8 @@ config :event_streamex,
 - `operator_queue_min_restart_time`: Time to wait in milliseconds before the first restart of a crashed operator (See `EventStreamex.Operators.Logger.ErrorLoggerAdapter`)
 - `password`: Password used to connect to the database
 - `port`: Port of the database
+- `process_status_entity_field`: The field name used is your entities to represent the last updated time. It must be set also when the entity is created. And it should have a precision of microseconds (use the `utc_datetime_usec` type with `Ecto`). This field is used to update the `EventStreamex.Operators.ProcessStatus` registry.
+- `process_status_storage_adapter`: Module used for process status storage and the parameter sent to the `start_link` function
 - `publication`: Name of the publication used by the WAL (it is created automatically if it does not already exist)
 - `pubsub`: Adapter to use for pubsub and its name
 - `queue_storage_adapter`: Module used for queue storage and the parameter sent to the `start_link` function
@@ -811,6 +815,43 @@ end
 Here we fecth the entity (but without triggering an exception if it does not exist), and we replace it if we receive the `:on_insert` event for that entity.
 
 You will just have to ensure your view shows a loader or something until the entity is created.
+
+### Handling async with APIs
+
+We saw 2 solutions we could use with a live view.
+But what if you develop an mobile app and use an API?
+
+If you have an API endpoint to create a new `posts` (`POST /posts`), and as soon as your appliation calls it, it redirects to another view requesting the detail of the created `post_with_comments_counts` (`GET /post_with_comments_counts`), then, you may receive a 404 error because of the async creation of the `post_with_comments_counts` entity.
+
+In order to avoid that, you could implement a mecanism that would return, along with the `posts` newly created, the post creation timestamp.
+
+Then, in the `GET /post_with_comments_counts` endpoint, you would send along the timestamp you got from the `POST /posts` endpoint.
+
+And in your controller you would check if the entity has been processed before returning the `post_with_comments_counts` requested.
+
+You can use `EventStreamex.Operators.ProcessStatus.processed?/2` in order to do so.
+
+For instance, when you create a `posts`, you receive this header from the API:
+
+```
+X-Event-Streamex-Entity-Timestamp: "posts/1422057007123000"
+```
+
+_(You can use the `:process_status_entity_field` config parameter to set the field to use in your entities to know the last updated time. You should return the field's value in your API, and use this value in the `processed?/2` function)_
+
+You will send this header when you call the `GET /post_with_comments_counts` endpoint.
+
+And the controller will immediately check if the entity has been processed:
+
+```elixir
+EventStreamex.Operators.ProcessStatus.processed?("posts", 1422057007123000)
+```
+
+If the entity has not been processed yet, then, you know the `post_with_comments_counts` entity has not been created yet (it works the same for updated entities).
+So you can immediately return a 425 response for instance, informing the client to retry later.
+
+If the entity has been processed, then you fetch it and return it.
+If you get a 404 error, this time, that means the entity did not exist.
 
 ## Tests
 

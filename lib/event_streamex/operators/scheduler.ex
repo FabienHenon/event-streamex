@@ -83,7 +83,20 @@ defmodule EventStreamex.Operators.Scheduler do
 
   defp get_modules_for_event(event) do
     event_mapper = %{update: :on_update, insert: :on_insert, delete: :on_delete}
-    Operator.get_modules_for_event(Map.get(event_mapper, event.type, nil), event.source.table)
+
+    case Operator.get_modules_for_event(
+           Map.get(event_mapper, event.type, nil),
+           event.source.table
+         ) do
+      [] ->
+        []
+
+      modules ->
+        # This operator will save the processed timestamp for the entity.
+        # It is executed last before the timestamp must be saved once all operators
+        # have processed the entity
+        modules ++ [EventStreamex.Operators.EntityProcessedOperator]
+    end
   end
 
   defp start_operator(nil, _config), do: :no_job

@@ -36,9 +36,16 @@ defmodule EventStreamex do
          Application.get_env(
            :event_streamex,
            :queue_storage_adapter,
-           {EventStreamex.Operators.Queue.MemAdapter, []}
+           {EventStreamex.Operators.Queue.DbAdapter, []}
+         )},
+        {EventStreamex.Operators.ProcessStatus.ProcessStatusStorageAdapter,
+         Application.get_env(
+           :event_streamex,
+           :process_status_storage_adapter,
+           {EventStreamex.Operators.ProcessStatus.DbAdapter, []}
          )},
         {EventStreamex.Operators.Queue, []},
+        {EventStreamex.Operators.ProcessStatus, []},
         {EventStreamex.Operators.Scheduler, [config: Application.get_all_env(:event_streamex)]}
       ]
 

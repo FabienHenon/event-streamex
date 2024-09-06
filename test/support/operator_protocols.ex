@@ -79,6 +79,38 @@ defmodule OperatorProtocols do
     )
   end
 
+  defmodule OtherLongOperator do
+    use EventStreamex.Operators.Operator,
+      schema: "other_long_operators",
+      repo: TestRepo
+
+    on_event(
+      all_events(),
+      entities(["long_operators"]),
+      fn item ->
+        Utils.PubSub.broadcast(
+          :adapter_name,
+          "LongOperator",
+          {"OtherLongOperator", :pid, self()}
+        )
+
+        receive do
+          :continue ->
+            Utils.PubSub.broadcast(
+              :adapter_name,
+              "LongOperator",
+              {"OtherLongOperator", :done}
+            )
+
+            {:ok, item.type}
+        after
+          10000 ->
+            {:error, :timeout}
+        end
+      end
+    )
+  end
+
   defmodule MergeOperator do
     use EventStreamex.Operators.Operator,
       schema: "merged_entities",

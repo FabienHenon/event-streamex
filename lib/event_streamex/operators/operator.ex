@@ -545,7 +545,7 @@ defmodule EventStreamex.Operators.Operator do
           )
 
           def process_event(curr_event, unquote(event), unquote(entity)) do
-            Process.sleep(10000)
+            # Process.sleep(10000)
             unquote(callback).(curr_event)
           end
         end
