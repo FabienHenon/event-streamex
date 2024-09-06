@@ -129,6 +129,17 @@ defmodule EventStreamex.Operators.EntityProcessedOperator do
 
   def to_unix_timestamp(_), do: {:error, :bad_arg}
 
+  @doc """
+  Transforms the last updated time field value to a unix timestamp.
+
+  See `to_unix_timestamp/1`
+  """
+  @doc since: "1.1.0"
+  def to_unix_timestamp!(timestamp) do
+    {:ok, t} = to_unix_timestamp(timestamp)
+    t
+  end
+
   defp get_record(%{type: :delete} = event), do: event.old_record
   defp get_record(event), do: event.new_record
 end

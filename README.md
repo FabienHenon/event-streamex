@@ -837,6 +837,21 @@ For instance, when you create a `posts`, you receive this header from the API:
 X-Event-Streamex-Entity-Timestamp: "posts/1422057007123000"
 ```
 
+```elixir
+def create(conn, %{"post" => post_params}) do
+  with {:ok, %Post{} = post} <- Blog.create_post(post_params) do
+    conn
+    |> put_status(:created)
+    |> put_resp_header("location", ~p"/api/posts/#{post}")
+    |> put_resp_header(
+      "x-event-streamex-entity-timestamp",
+      "posts/#{EventStreamex.Operators.EntityProcessedOperator.to_unix_timestamp!(post.updated_at)}"
+    )
+    |> render(:show, post: post)
+  end
+end
+```
+
 _(You can use the `:process_status_entity_field` config parameter to set the field to use in your entities to know the last updated time. You should return the field's value in your API, and use this value in the `processed?/2` function)_
 
 You will send this header when you call the `GET /post_with_comments_counts` endpoint.
@@ -852,6 +867,59 @@ So you can immediately return a 425 response for instance, informing the client 
 
 If the entity has been processed, then you fetch it and return it.
 If you get a 404 error, this time, that means the entity did not exist.
+
+You can do that in a plug in your api scope:
+
+```elixir
+defmodule MyApp.Plugs.EventStreamexEntityTimestamp do
+  import Plug.Conn
+
+  @header_name "x-event-streamex-entity-timestamp"
+
+  def init(default), do: default
+
+  def call(%Plug.Conn{} = conn, _default) do
+    case get_req_header(conn, @header_name) do
+      [] ->
+        conn
+
+      [entity_timestamp] ->
+        case decode_entity_timestamp(entity_timestamp) do
+          {:ok, entity, timestamp} ->
+            unless EventStreamex.Operators.ProcessStatus.processed?(entity, timestamp) do
+              conn
+              |> put_status(425)
+              |> resp(425, "Entity not processed yet")
+              |> halt()
+            else
+              conn
+            end
+
+          _ ->
+            conn
+        end
+    end
+  end
+
+  def decode_entity_timestamp(entity_timestamp) do
+    case entity_timestamp |> String.split("/") do
+      [entity | [timestamp_str | []]] ->
+        case Integer.parse(timestamp_str, 10) do
+          {timestamp, _} ->
+            {:ok, entity, timestamp}
+
+          :error ->
+            {:error, :not_integer}
+        end
+
+      _ ->
+        {:error, :bad_format}
+    end
+  end
+end
+```
+
+Of course you can implement it the way you want, but you've got the idea.
 
 ## Tests
 
