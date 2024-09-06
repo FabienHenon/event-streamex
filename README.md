@@ -9,7 +9,7 @@ This package uses the [Write-Ahead-Log from PostgreSQL](https://www.postgresql.o
 - To add realtime support in your views
 - To update other entities in realtime (as soon as an entity it depends on is updated)
 
-Full documentation can be found [here](https://hexdocs.pm/event_streamex/1.0.0/EventStreamex.html).
+Full documentation can be found [here](https://hexdocs.pm/event_streamex).
 
 ## Usage
 
