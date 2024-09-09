@@ -11,15 +11,15 @@ defmodule EventStreamex.Operators.ProcessStatus.ProcessStatusStorageAdapter do
   - Event emitted in pubsub
   - Event processed by all operators listening to it
 
-  The adapters keeps a copy of this process status, mostly in case of crash (Except for `EventStreamex.Operators.ProcessStatus.MemAdapter` which keeps the process status only in memory and should not be used in production)
+  The adapters keeps a copy of this process status, mostly in case of crash (Except for `EventStreamex.Operators.ProcessStatus.NoAdapter` which does not saves the process status and should not be used in production)
 
   There are currently 2 process status adapters:
   * `EventStreamex.Operators.ProcessStatus.DbAdapter`: A process status that uses the database tu store its items (This is the default process status adapter)
-  * `EventStreamex.Operators.ProcessStatus.MemAdapter`: A process status that stores its items in memory
+  * `EventStreamex.Operators.ProcessStatus.NoAdapter`: A process status that do not store its items
 
   You can create your own adapter and set the config to use it.
 
-  Here is the full code of the memory adapter:
+  Here is the full code of a possible memory adapter:
 
   ```elixir
   defmodule EventStreamex.Operators.ProcessStatus.MemAdapter do

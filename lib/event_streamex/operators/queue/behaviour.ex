@@ -9,15 +9,15 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   operator listening for this event.
   And everytime a an operator task is finished, it is removed from the queue.
 
-  The adapters keeps a copy of this queue, mostly in case of crash (Except for `EventStreamex.Operators.Queue.MemAdapter` which keeps the queue only in memory and should not be used in production)
+  The adapters keeps a copy of this queue, mostly in case of crash (Except for `EventStreamex.Operators.Queue.NoAdapter` which does not save the queue and should not be used in production)
 
   There are currently 2 queue adapters:
   * `EventStreamex.Operators.Queue.DbAdapter`: A queue that uses the database tu store its items (This is the default queue adapter)
-  * `EventStreamex.Operators.Queue.MemAdapter`: A queue that stores its items in memory
+  * `EventStreamex.Operators.Queue.NOAdapter`: A queue that does not store its items
 
   You can create your own adapter and set the config to use it.
 
-  Here is the full code of the memory adapter:
+  Here is the full code a possible memory adapter:
 
   ```elixir
   defmodule EventStreamex.Operators.Queue.MemAdapter do

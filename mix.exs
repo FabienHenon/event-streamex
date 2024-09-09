@@ -54,10 +54,10 @@ defmodule EventStreamex.MixProject do
       password: "",
       port: "5432",
       process_status_entity_field: :updated_at,
-      process_status_storage_adapter: {EventStreamex.Operators.ProcessStatus.MemAdapter, []},
+      process_status_storage_adapter: {EventStreamex.Operators.ProcessStatus.NoAdapter, []},
       publication: "events",
       pubsub: [adapter: Utils.PubSub, name: :adapter_name],
-      queue_storage_adapter: {EventStreamex.Operators.Queue.MemAdapter, []},
+      queue_storage_adapter: {EventStreamex.Operators.Queue.NoAdapter, []},
       slot_name: "postgres_test_slot",
       url: "",
       username: "postgres"

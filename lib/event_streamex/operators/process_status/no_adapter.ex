@@ -1,8 +1,8 @@
-defmodule EventStreamex.Operators.ProcessStatus.MemAdapter do
+defmodule EventStreamex.Operators.ProcessStatus.NoAdapter do
   @moduledoc """
-  Stores the process status in memory.
+  Do not store the process status.
 
-  This adapter simply keeps the process status in memory.
+  This adapter can be used to improve performances.
   This adapter should only be used for tests or dev environments as it will
   not recover the process status in case of a node crash in a distributed system.
   """
@@ -18,20 +18,20 @@ defmodule EventStreamex.Operators.ProcessStatus.MemAdapter do
 
   @doc false
   @impl EventStreamex.Operators.ProcessStatus.ProcessStatusStorageAdapter
-  def item_processed(item) do
-    GenServer.call(__MODULE__, {:save, item})
+  def item_processed(_item) do
+    {:ok, :no_op}
   end
 
   @doc false
   @impl EventStreamex.Operators.ProcessStatus.ProcessStatusStorageAdapter
   def load() do
-    GenServer.call(__MODULE__, :load)
+    {:ok, []}
   end
 
   @doc false
   @impl EventStreamex.Operators.ProcessStatus.ProcessStatusStorageAdapter
   def reset() do
-    GenServer.call(__MODULE__, :reset)
+    {:ok, []}
   end
 
   # Callbacks
@@ -40,24 +40,5 @@ defmodule EventStreamex.Operators.ProcessStatus.MemAdapter do
   @impl true
   def init(_opts) do
     {:ok, %{}}
-  end
-
-  @doc false
-  @impl true
-  def handle_call({:save, {entity, timestamp}}, _from, process_status) do
-    new_process_status = process_status |> Map.put(entity, timestamp)
-    {:reply, {:ok, new_process_status}, new_process_status}
-  end
-
-  @doc false
-  @impl true
-  def handle_call(:load, _from, process_status) do
-    {:reply, {:ok, process_status |> Map.to_list()}, process_status}
-  end
-
-  @doc false
-  @impl true
-  def handle_call(:reset, _from, _process_status) do
-    {:reply, {:ok, []}, []}
   end
 end

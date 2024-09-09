@@ -149,6 +149,7 @@ defmodule EventStreamex.Operators.ProcessStatus do
   @impl true
   def handle_call({:save, entity, timestamp}, _from, table) do
     :ets.insert(@ets_name, {entity, timestamp})
+    ProcessStatusStorageAdapter.item_processed({entity, timestamp})
     {:reply, :ok, table}
   end
 
@@ -156,6 +157,7 @@ defmodule EventStreamex.Operators.ProcessStatus do
   @impl true
   def handle_call(:reset, _from, table) do
     :ets.delete_all_objects(@ets_name)
+    ProcessStatusStorageAdapter.reset()
     {:reply, :ok, table}
   end
 end

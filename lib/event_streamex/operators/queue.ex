@@ -28,7 +28,7 @@ defmodule EventStreamex.Operators.Queue do
       Agent.start_link(
         fn ->
           {:ok, queue} = QueueStorageAdapter.load_queue()
-          queue
+          :queue.from_list(queue)
         end,
         name: __MODULE__
       )
@@ -43,7 +43,13 @@ defmodule EventStreamex.Operators.Queue do
   """
   @doc since: "1.0.0"
   def get_task do
-    Agent.get(__MODULE__, &(List.first(&1) |> get_value()))
+    Agent.get(__MODULE__, fn queue ->
+      case :queue.peek(queue) do
+        :empty -> nil
+        {:value, item} -> item
+      end
+      |> get_value()
+    end)
   end
 
   @doc """
@@ -51,7 +57,7 @@ defmodule EventStreamex.Operators.Queue do
   """
   @doc since: "1.0.0"
   def get_queue do
-    Agent.get(__MODULE__, & &1)
+    Agent.get(__MODULE__, &:queue.to_list(&1))
   end
 
   @doc """
@@ -62,7 +68,8 @@ defmodule EventStreamex.Operators.Queue do
     Agent.update(__MODULE__, fn queue ->
       new_item = {UUID.uuid4(), {module, event}}
       {:ok, _res} = QueueStorageAdapter.add_item(new_item)
-      queue ++ [new_item]
+
+      :queue.in(new_item, queue)
     end)
   end
 
@@ -72,9 +79,14 @@ defmodule EventStreamex.Operators.Queue do
   @doc since: "1.0.0"
   def task_finished() do
     Agent.update(__MODULE__, fn queue ->
-      {item, new_queue} = Enum.split(queue, 1)
-      {:ok, _res} = QueueStorageAdapter.delete_item(item |> List.first())
-      new_queue
+      case :queue.out(queue) do
+        {:empty, new_queue} ->
+          new_queue
+
+        {{:value, item}, new_queue} ->
+          {:ok, _res} = QueueStorageAdapter.delete_item(item)
+          new_queue
+      end
     end)
   end
 
@@ -90,7 +102,7 @@ defmodule EventStreamex.Operators.Queue do
   def reset_queue() do
     Agent.update(__MODULE__, fn _state ->
       QueueStorageAdapter.reset_queue()
-      []
+      :queue.new()
     end)
   end
 end

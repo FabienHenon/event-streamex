@@ -2,7 +2,7 @@ defmodule QueuesTest do
   use ExUnit.Case, async: false
 
   alias EventStreamex.Operators.Queue
-  alias EventStreamex.Operators.Queue.MemAdapter
+  alias EventStreamex.Operators.Queue.NoAdapter
 
   setup do
     Queue.reset_queue()
@@ -15,7 +15,7 @@ defmodule QueuesTest do
   describe "Queue" do
     test "is empty" do
       assert match?(nil, Queue.get_task())
-      assert match?({:ok, []}, MemAdapter.load_queue())
+      assert match?({:ok, []}, NoAdapter.load_queue())
     end
 
     test "has 1 item" do
@@ -23,11 +23,6 @@ defmodule QueuesTest do
 
       assert match?([{_, {"ModuleName", %WalEx.Event{type: :insert}}}], Queue.get_queue())
       assert match?({"ModuleName", %WalEx.Event{type: :insert}}, Queue.get_task())
-
-      assert match?(
-               {:ok, [{_, {"ModuleName", %WalEx.Event{type: :insert}}}]},
-               MemAdapter.load_queue()
-             )
     end
 
     test "has 3 items" do
@@ -45,16 +40,6 @@ defmodule QueuesTest do
              )
 
       assert match?({"ModuleName1", %WalEx.Event{type: :insert}}, Queue.get_task())
-
-      assert match?(
-               {:ok,
-                [
-                  {_, {"ModuleName1", %WalEx.Event{type: :insert}}},
-                  {_, {"ModuleName2", %WalEx.Event{type: :update}}},
-                  {_, {"ModuleName3", %WalEx.Event{type: :delete}}}
-                ]},
-               MemAdapter.load_queue()
-             )
     end
 
     test "task completed" do
@@ -73,15 +58,6 @@ defmodule QueuesTest do
              )
 
       assert match?({"ModuleName2", %WalEx.Event{type: :update}}, Queue.get_task())
-
-      assert match?(
-               {:ok,
-                [
-                  {_, {"ModuleName2", %WalEx.Event{type: :update}}},
-                  {_, {"ModuleName3", %WalEx.Event{type: :delete}}}
-                ]},
-               MemAdapter.load_queue()
-             )
     end
   end
 end
