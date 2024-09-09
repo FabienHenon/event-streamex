@@ -80,7 +80,12 @@ For the package to work correctly you will have to specify, at least:
 
 ### Mark the entity for listening
 
-To mark an entity for listening, you will have to use the `EventStreamex.Events` module:
+To mark an entity for listening, you will have to do 2 things:
+
+- use the `EventStreamex.Events` module
+- and set the tables for replication
+
+#### Use the `EventStreamex.Events` module
 
 ```elixir
 defmodule MyApp.Blog.Post do
@@ -107,6 +112,16 @@ defmodule MyApp.Blog.Post do
   end
 end
 ```
+
+#### Set the tables for replication
+
+For each table of your application, you will have to execute this SQL query (ideally in the migrations);
+
+```sql
+ALTER TABLE ONLY <table_name> REPLICA IDENTITY FULL;
+```
+
+Of course, you will replace `<table_name>`by the name of the table.
 
 Any marked entity will tell PostreSQL's WAL to emit events as soon as it is `inserted`, `updated`, `deleted`.
 

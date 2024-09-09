@@ -30,6 +30,9 @@ defmodule EventStreamex.Operators.Scheduler do
 
   alias EventStreamex.Operators.{Executor, Queue, Operator}
 
+  @ets_name :scheduler
+  @curr_job_key :curr_job
+
   @doc false
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -78,7 +81,19 @@ defmodule EventStreamex.Operators.Scheduler do
   """
   @doc since: "1.0.0"
   def process_event(pid, event) do
-    GenServer.cast(pid, {:process_event, event})
+    event
+    |> get_modules_for_event()
+    |> Enum.each(&Queue.enqueue(&1, event))
+
+    case curr_job() do
+      :no_job ->
+        GenServer.cast(pid, :process_event)
+
+      _ ->
+        :ok
+    end
+
+    :ok
   end
 
   defp get_modules_for_event(event) do
@@ -96,6 +111,22 @@ defmodule EventStreamex.Operators.Scheduler do
         # It is executed last before the timestamp must be saved once all operators
         # have processed the entity
         modules ++ [EventStreamex.Operators.EntityProcessedOperator]
+    end
+  end
+
+  @doc """
+  Gets the current operator being executed or `:no_job`.
+
+  The return value is like this: `{:ok, pid(), ref()}`
+  """
+  @doc since: "1.2.0"
+  def curr_job() do
+    case :ets.lookup(@ets_name, @curr_job_key) do
+      [{@curr_job_key, curr_job}] ->
+        curr_job
+
+      _ ->
+        :no_job
     end
   end
 
@@ -129,43 +160,49 @@ defmodule EventStreamex.Operators.Scheduler do
     Logger.debug("Scheduler starting...")
     config = Keyword.get(opts, :config, [])
 
+    table = :ets.new(@ets_name, [:set, :protected, :named_table, read_concurrency: true])
+
     curr_job = start_operator(Queue.get_task(), config)
+    :ets.insert(@ets_name, {@curr_job_key, curr_job})
 
     Logger.debug("Scheduler started")
 
     {:ok,
      %{
        config: config,
-       curr_job: curr_job
+       ets_table: table
      }}
   end
 
   @doc false
   @impl true
-  def handle_cast({:process_event, event}, %{curr_job: :no_job} = state) do
-    modules = get_modules_for_event(event)
+  def handle_cast(:process_event, state) do
+    case curr_job() do
+      :no_job ->
+        curr_job = start_operator(Queue.get_task(), state.config)
+        :ets.insert(@ets_name, {@curr_job_key, curr_job})
 
-    modules
-    |> Enum.each(&Queue.enqueue(&1, event))
+        {:noreply, state}
 
-    {:noreply, %{state | curr_job: start_operator(Queue.get_task(), state.config)}}
+      _curr_job ->
+        {:noreply, state}
+    end
   end
 
   @doc false
   @impl true
-  def handle_cast({:process_event, event}, state) do
-    event
-    |> get_modules_for_event()
-    |> Enum.each(&Queue.enqueue(&1, event))
+  def handle_info({:DOWN, ref, :process, _object, :normal}, state) do
+    case curr_job() do
+      {:ok, _pid, ^ref} ->
+        Queue.task_finished()
 
-    {:noreply, state}
-  end
+        curr_job = start_operator(Queue.get_task(), state.config)
+        :ets.insert(@ets_name, {@curr_job_key, curr_job})
 
-  @doc false
-  @impl true
-  def handle_info({:DOWN, ref, :process, _object, :normal}, %{curr_job: {:ok, _pid, ref}} = state) do
-    Queue.task_finished()
+        {:noreply, state}
 
-    {:noreply, %{state | curr_job: start_operator(Queue.get_task(), state.config)}}
+      :no_job ->
+        {:noreply, state}
+    end
   end
 end
