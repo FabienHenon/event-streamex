@@ -66,7 +66,7 @@ defmodule EventStreamex.Operators.Executor do
 
   @doc false
   def start_link(arg) do
-    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
+    GenServer.start_link(__MODULE__, arg)
   end
 
   @doc false

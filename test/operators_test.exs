@@ -1,6 +1,8 @@
 defmodule OperatorsTest do
   use ExUnit.Case, async: false
 
+  @moduletag :operators
+
   setup do
     Utils.LoggerAdapter.set_parent(self())
 
@@ -401,7 +403,7 @@ defmodule OperatorsTest do
     test "when several events are enqueued" do
       Utils.PubSub.subscribe(:adapter_name, "FilteredOperator")
       Utils.PubSub.subscribe(:adapter_name, "LongOperator")
-      Utils.PubSub.subscribe(:adapter_name, "EntityProcessedOperator")
+      Utils.PubSub.subscribe(:adapter_name, "EntityProcessed")
 
       datetime = DateTime.utc_now()
 
@@ -485,53 +487,18 @@ defmodule OperatorsTest do
              )
 
       assert_receive {"LongOperator", :pid, pid}, 1000
+      assert_receive {"OtherLongOperator", :pid, pid2}, 1000
       refute_receive {"LongOperator", :done}, 1000
-      refute_receive {"OtherLongOperator", :pid, _pid2}, 1000
       refute_receive {"OtherLongOperator", :done}, 1000
       refute_receive {"FilteredOperator", :insert, "filtered_operators"}, 1000
 
       assert match?(
                [
                  {_uuid1,
-                  {OperatorProtocols.LongOperator,
-                   %WalEx.Event{
-                     name: :long_operators,
-                     type: :insert,
-                     source: %WalEx.Event.Source{
-                       name: "WalEx",
-                       version: "4.1.0",
-                       db: "postgres",
-                       schema: "public",
-                       table: "long_operators",
-                       columns: %{id: "integer", msg: "varchar", updated_at: "datetime"}
-                     },
-                     new_record: %{id: "89", msg: "Hello", updated_at: ^datetime},
-                     old_record: nil,
-                     changes: nil,
-                     timestamp: 0,
-                     lsn: "0/0"
-                   }}},
-                 {_uuid1_2,
-                  {OperatorProtocols.OtherLongOperator,
-                   %WalEx.Event{
-                     name: :long_operators,
-                     type: :insert,
-                     source: %WalEx.Event.Source{
-                       name: "WalEx",
-                       version: "4.1.0",
-                       db: "postgres",
-                       schema: "public",
-                       table: "long_operators",
-                       columns: %{id: "integer", msg: "varchar", updated_at: "datetime"}
-                     },
-                     new_record: %{id: "89", msg: "Hello", updated_at: ^datetime},
-                     old_record: nil,
-                     changes: nil,
-                     timestamp: 0,
-                     lsn: "0/0"
-                   }}},
-                 {_uuid1_1,
-                  {EventStreamex.Operators.EntityProcessedOperator,
+                  {%{
+                     OperatorProtocols.LongOperator => false,
+                     OperatorProtocols.OtherLongOperator => false
+                   },
                    %WalEx.Event{
                      name: :long_operators,
                      type: :insert,
@@ -550,26 +517,9 @@ defmodule OperatorsTest do
                      lsn: "0/0"
                    }}},
                  {_uuid2,
-                  {OperatorProtocols.FilteredOperator,
-                   %WalEx.Event{
-                     name: :filtered_operators,
-                     type: :insert,
-                     source: %WalEx.Event.Source{
-                       name: "WalEx",
-                       version: "4.1.0",
-                       db: "postgres",
-                       schema: "public",
-                       table: "filtered_operators",
-                       columns: %{id: "integer", msg: "varchar"}
-                     },
-                     new_record: %{id: "89", msg: "Hello"},
-                     old_record: nil,
-                     changes: nil,
-                     timestamp: 0,
-                     lsn: "0/0"
-                   }}},
-                 {_uuid2_2,
-                  {EventStreamex.Operators.EntityProcessedOperator,
+                  {%{
+                     OperatorProtocols.FilteredOperator => false
+                   },
                    %WalEx.Event{
                      name: :filtered_operators,
                      type: :insert,
@@ -598,8 +548,6 @@ defmodule OperatorsTest do
       Process.send(pid, :continue, [])
 
       assert_receive {"LongOperator", :done}, 1000
-
-      assert_receive {"OtherLongOperator", :pid, pid2}, 1000
       refute_receive {"OtherLongOperator", :done}, 1000
 
       refute_receive {"processed", "long_operators", _timestamp}, 1000

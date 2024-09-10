@@ -31,7 +31,6 @@ defmodule EventStreamex.Operators.Scheduler do
   alias EventStreamex.Operators.{Executor, Queue, Operator}
 
   @ets_name :scheduler
-  @curr_job_key :curr_job
 
   @doc false
   def start_link(arg) do
@@ -83,10 +82,10 @@ defmodule EventStreamex.Operators.Scheduler do
   def process_event(pid, event) do
     event
     |> get_modules_for_event()
-    |> Enum.each(&Queue.enqueue(&1, event))
+    |> Queue.enqueue(event)
 
     case curr_job() do
-      :no_job ->
+      [] ->
         GenServer.cast(pid, :process_event)
 
       _ ->
@@ -99,30 +98,28 @@ defmodule EventStreamex.Operators.Scheduler do
   defp get_modules_for_event(event) do
     event_mapper = %{update: :on_update, insert: :on_insert, delete: :on_delete}
 
-    case Operator.get_modules_for_event(
-           Map.get(event_mapper, event.type, nil),
-           event.source.table
-         ) do
-      [] ->
-        []
+    Operator.get_modules_for_event(
+      Map.get(event_mapper, event.type, nil),
+      event.source.table
+    )
+  end
 
-      modules ->
-        # This operator will save the processed timestamp for the entity.
-        # It is executed last before the timestamp must be saved once all operators
-        # have processed the entity
-        modules ++ [EventStreamex.Operators.EntityProcessedOperator]
-    end
+  defp update_processed_entity(event) do
+    # This will save the processed timestamp for the entity.
+    # It is executed last before the timestamp must be saved once all operators
+    # have processed the entity
+    EventStreamex.Operators.EntityProcessed.processed(event)
   end
 
   @doc """
-  Gets the current operator being executed or `:no_job`.
+  Gets the information of the given operator being executed or `:no_job`.
 
-  The return value is like this: `{:ok, pid(), ref()}`
+  The return value is like this: `{pid(), ref(), event(), boolean()}`
   """
   @doc since: "1.2.0"
-  def curr_job() do
-    case :ets.lookup(@ets_name, @curr_job_key) do
-      [{@curr_job_key, curr_job}] ->
+  def curr_job(module) do
+    case :ets.lookup(@ets_name, module) do
+      [{^module, curr_job}] ->
         curr_job
 
       _ ->
@@ -130,17 +127,61 @@ defmodule EventStreamex.Operators.Scheduler do
     end
   end
 
-  defp start_operator(nil, _config), do: :no_job
+  @doc """
+  Gets the list of operators being executed with their status.
 
-  defp start_operator({module, event}, config) do
-    {:ok, pid} =
-      Executor.start_link(Keyword.merge([module: module, initial_state: event], config))
+  The return value is like this: `[{atom(), {pid(), ref(), boolean()}}]`
+  """
+  @doc since: "1.2.0"
+  def curr_job() do
+    :ets.tab2list(@ets_name)
+  end
 
-    ref = Process.monitor(pid)
+  defp start_operator(nil, _config) do
+    :ets.delete_all_objects(@ets_name)
+    {:ok, :no_job}
+  end
 
-    Executor.start_task(pid)
+  defp start_operator({[], _event}, _config) do
+    :ets.delete_all_objects(@ets_name)
+    {:ok, :no_job}
+  end
 
-    {:ok, pid, ref}
+  defp start_operator({modules, event}, config) do
+    :ets.delete_all_objects(@ets_name)
+
+    {:ok,
+     modules
+     |> Map.to_list()
+     |> Enum.map(fn
+       {module, false} ->
+         {:ok, pid} =
+           Executor.start_link(Keyword.merge([module: module, initial_state: event], config))
+
+         ref = Process.monitor(pid)
+
+         Executor.start_task(pid)
+
+         curr_job = {pid, ref, event, false}
+
+         :ets.insert(@ets_name, {module, curr_job})
+
+         curr_job
+
+       {module, true} ->
+         :ets.insert(@ets_name, {module, {nil, nil, event, true}})
+     end)}
+  end
+
+  defp processor_completed(module) do
+    case curr_job(module) do
+      :no_job ->
+        false
+
+      {pid, ref, event, _status} ->
+        :ets.insert(@ets_name, {module, {pid, ref, event, true}})
+        true
+    end
   end
 
   @doc """
@@ -162,8 +203,7 @@ defmodule EventStreamex.Operators.Scheduler do
 
     table = :ets.new(@ets_name, [:set, :protected, :named_table, read_concurrency: true])
 
-    curr_job = start_operator(Queue.get_task(), config)
-    :ets.insert(@ets_name, {@curr_job_key, curr_job})
+    {:ok, _curr_jobs} = start_operator(Queue.get_task(), config)
 
     Logger.debug("Scheduler started")
 
@@ -178,13 +218,12 @@ defmodule EventStreamex.Operators.Scheduler do
   @impl true
   def handle_cast(:process_event, state) do
     case curr_job() do
-      :no_job ->
-        curr_job = start_operator(Queue.get_task(), state.config)
-        :ets.insert(@ets_name, {@curr_job_key, curr_job})
+      [] ->
+        {:ok, _curr_jobs} = start_operator(Queue.get_task(), state.config)
 
         {:noreply, state}
 
-      _curr_job ->
+      _curr_jos ->
         {:noreply, state}
     end
   end
@@ -192,17 +231,25 @@ defmodule EventStreamex.Operators.Scheduler do
   @doc false
   @impl true
   def handle_info({:DOWN, ref, :process, _object, :normal}, state) do
-    case curr_job() do
-      {:ok, _pid, ^ref} ->
-        Queue.task_finished()
+    curr_job()
+    |> Enum.reduce({true, nil}, fn
+      {module, {_pid, ^ref, event, _status}}, {final_status, _e} ->
+        Queue.task_finished(module)
+        {processor_completed(module) && final_status, event}
 
-        curr_job = start_operator(Queue.get_task(), state.config)
-        :ets.insert(@ets_name, {@curr_job_key, curr_job})
+      {_module, {_pid, _ref, event, status}}, {final_status, _e} ->
+        {status && final_status, event}
+    end)
+    |> case do
+      {true, event} ->
+        {:ok, _ref} = update_processed_entity(event)
 
-        {:noreply, state}
+        {:ok, _curr_jobs} = start_operator(Queue.get_task(), state.config)
 
-      :no_job ->
-        {:noreply, state}
+      _ ->
+        :ok
     end
+
+    {:noreply, state}
   end
 end

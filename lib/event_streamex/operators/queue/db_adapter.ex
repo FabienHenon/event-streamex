@@ -12,7 +12,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
   @behaviour EventStreamex.Operators.Queue.QueueStorageAdapter
 
   @derive Jason.Encoder
-  defstruct module: nil, event: nil
+  defstruct processors: nil, event: nil
 
   @table_name "event_streamex_queue"
 
@@ -36,6 +36,12 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
 
   @doc false
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
+  def update_processors_status(item) do
+    GenServer.call(__MODULE__, {:update, item})
+  end
+
+  @doc false
+  @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def load_queue() do
     GenServer.call(__MODULE__, :load)
   end
@@ -55,7 +61,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         """
         CREATE TABLE IF NOT EXISTS #{table_name} (
           id              UUID NOT NULL PRIMARY KEY,
-          module          VARCHAR(255) NOT NULL,
+          processors      JSONB NOT NULL,
           name            VARCHAR(255) NOT NULL,
           type            VARCHAR(255) NOT NULL,
           source_name     VARCHAR(255) NOT NULL,
@@ -87,7 +93,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
   @doc false
   def decode(%{
         "id" => id,
-        "module" => module,
+        "processors" => processors,
         "name" => name,
         "type" => type,
         "source_name" => source_name,
@@ -105,7 +111,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
     columns = decode_struct_keys(source_columns)
 
     {id |> UUID.binary_to_string!(),
-     {String.to_existing_atom(module),
+     {decode_processors(processors),
       %WalEx.Event{
         name: String.to_atom(name),
         type: String.to_atom(type),
@@ -125,6 +131,16 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
       }}}
   end
 
+  defp decode_processors(processors) do
+    processors
+    |> Jason.decode!()
+    |> Map.to_list()
+    |> Enum.map(fn {module, status} ->
+      {String.to_existing_atom(module), status}
+    end)
+    |> Map.new()
+  end
+
   defp decode_lsn([i1 | [i2 | _res]]),
     do: {Integer.parse(i1, 16) |> elem(0), Integer.parse(i2, 16) |> elem(0)}
 
@@ -138,6 +154,16 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
       |> Map.new()
 
   defp decode_struct_keys(v), do: v
+
+  defp encode_processors(processors) do
+    processors
+    |> Map.to_list()
+    |> Enum.map(fn {module, status} ->
+      {module |> Atom.to_string(), status}
+    end)
+    |> Map.new()
+    |> Jason.encode!()
+  end
 
   defp cast_changes(nil, _columns), do: nil
 
@@ -196,7 +222,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
   @doc false
   @impl true
   def handle_call(
-        {:save, {id, {module, item}}},
+        {:save, {id, {processors, item}}},
         _from,
         %{table_name: table_name, pid: pid} = state
       ) do
@@ -207,7 +233,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         INSERT INTO #{table_name}
           (
             id,
-            module,
+            processors,
             name,
             type,
             source_name,
@@ -245,7 +271,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         """,
         [
           id |> UUID.string_to_binary!(),
-          module |> Atom.to_string(),
+          processors |> encode_processors(),
           item.name |> Atom.to_string(),
           item.type |> Atom.to_string(),
           item.source.name,
@@ -270,7 +296,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
   @doc false
   @impl true
   def handle_call(
-        {:delete, {id, {_module, _item}}},
+        {:delete, {id, {_processors, _item}}},
         _from,
         %{table_name: table_name, pid: pid} = state
       ) do
@@ -302,6 +328,28 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
   @doc false
   @impl true
   def handle_call(
+        {:update, {id, {processors, _item}}},
+        _from,
+        %{table_name: table_name, pid: pid} = state
+      ) do
+    res =
+      Postgrex.query(
+        pid,
+        """
+        UPDATE #{table_name} SET processors = $1
+        WHERE id = $2
+        """,
+        [processors |> encode_processors(), id |> UUID.string_to_binary!()]
+      )
+
+    Logger.debug("[QUEUE] Deleted item with result #{inspect(res)}")
+
+    {:reply, res, state}
+  end
+
+  @doc false
+  @impl true
+  def handle_call(
         :load,
         _from,
         %{table_name: table_name, pid: pid} = state
@@ -312,7 +360,7 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         """
         SELECT
           id,
-          module,
+          processors,
           name,
           type,
           source_name,

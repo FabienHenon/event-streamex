@@ -30,6 +30,12 @@ defmodule EventStreamex.Operators.Queue.NoAdapter do
 
   @doc false
   @impl EventStreamex.Operators.Queue.QueueStorageAdapter
+  def update_processors_status(_item) do
+    {:ok, :no_op}
+  end
+
+  @doc false
+  @impl EventStreamex.Operators.Queue.QueueStorageAdapter
   def load_queue() do
     {:ok, []}
   end

@@ -1,6 +1,8 @@
 defmodule EventsTest do
   use ExUnit.Case, async: false
 
+  @moduletag :events
+
   defmodule TestScheduler do
     use GenServer
 
@@ -150,25 +152,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:process_event,
-                      %WalEx.Event{
-                        name: :comments,
-                        type: :insert,
-                        source: %WalEx.Event.Source{
-                          name: "WalEx",
-                          version: "4.1.0",
-                          db: "postgres",
-                          schema: "public",
-                          table: "comments",
-                          columns: %{id: "integer", comment: "varchar", post_id: "integer"}
-                        },
-                        new_record: %{id: "89", comment: "Hello", post_id: "123"},
-                        old_record: nil,
-                        changes: nil,
-                        timestamp: 0,
-                        lsn: "0/0"
-                      }},
-                     1000
+      assert_receive :process_event, 1000
     end
 
     test "on_update/4", %{} do
@@ -321,34 +305,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:process_event,
-                      %WalEx.Event{
-                        name: :comments,
-                        type: :update,
-                        source: %WalEx.Event.Source{
-                          name: "WalEx",
-                          version: "4.1.0",
-                          db: "postgres",
-                          schema: "public",
-                          table: "comments",
-                          columns: %{id: "integer", comment: "varchar", post_id: "integer"}
-                        },
-                        new_record: %{id: "89", comment: "Hello", post_id: "123"},
-                        old_record: nil,
-                        changes: %{
-                          comment: %{
-                            new_value: "Hello",
-                            old_value: "Hello you"
-                          },
-                          id: %{
-                            new_value: "89",
-                            old_value: "90"
-                          }
-                        },
-                        timestamp: 0,
-                        lsn: "0/0"
-                      }},
-                     1000
+      assert_receive :process_event, 1000
     end
 
     test "on_delete/4", %{} do
@@ -469,25 +426,7 @@ defmodule EventsTest do
                       }},
                      1000
 
-      assert_receive {:process_event,
-                      %WalEx.Event{
-                        name: :comments,
-                        type: :delete,
-                        source: %WalEx.Event.Source{
-                          name: "WalEx",
-                          version: "4.1.0",
-                          db: "postgres",
-                          schema: "public",
-                          table: "comments",
-                          columns: %{id: "integer", comment: "varchar", post_id: "integer"}
-                        },
-                        old_record: %{id: "89", comment: "Hello", post_id: "123"},
-                        new_record: nil,
-                        changes: nil,
-                        timestamp: 0,
-                        lsn: "0/0"
-                      }},
-                     1000
+      assert_receive :process_event, 1000
     end
 
     test "bad event type", %{} do
@@ -538,7 +477,7 @@ defmodule EventsTest do
 
       refute_receive {:on_delete, _, _, _}, 1000
 
-      refute_receive {:process_event, _}, 1000
+      refute_receive :process_event, 1000
     end
 
     test "bad table", %{} do
@@ -589,7 +528,7 @@ defmodule EventsTest do
 
       refute_receive {:on_delete, _, _, _}, 1000
 
-      refute_receive {:process_event, _}, 1000
+      refute_receive :process_event, 1000
     end
   end
 end

@@ -1,6 +1,6 @@
-defmodule EventStreamex.Operators.EntityProcessedOperator do
+defmodule EventStreamex.Operators.EntityProcessed do
   @moduledoc """
-  This operator listens for all entities and is called last for each event.
+  This module is called last for each event.
 
   All it does is register the last updated timestamp of the entity and store it
   in the `EventStreamex.Operators.ProcessStatus` module.
@@ -16,40 +16,14 @@ defmodule EventStreamex.Operators.EntityProcessedOperator do
   * `NaiveDateTime`: Using microsecond precision
   """
   @moduledoc since: "1.1.0"
-  use GenServer
   require Logger
 
-  @doc false
-  def start(arg) do
-    GenServer.start(__MODULE__, arg, name: __MODULE__)
-  end
-
-  @doc false
-  @impl true
-  def init(event) do
+  def processed(event) do
     [adapter: pubsub_adapter, name: pubsub] = Application.get_env(:event_streamex, :pubsub)
 
-    {:ok,
-     {event,
-      %{
-        updated_at_field:
-          Application.get_env(:event_streamex, :process_status_entity_field, :updated_at),
-        pubsub_adapter: pubsub_adapter,
-        pubsub_name: pubsub
-      }}}
-  end
+    updated_at_field =
+      Application.get_env(:event_streamex, :process_status_entity_field, :updated_at)
 
-  @doc false
-  @impl true
-  def handle_info(
-        :process,
-        {event,
-         %{
-           updated_at_field: updated_at_field,
-           pubsub_adapter: pubsub_adapter,
-           pubsub_name: pubsub
-         }} = state
-      ) do
     timestamp = Map.get(get_record(event), updated_at_field, nil)
     entity = event.source.table
 
@@ -69,11 +43,11 @@ defmodule EventStreamex.Operators.EntityProcessedOperator do
 
     pubsub_adapter.broadcast(
       pubsub,
-      "EntityProcessedOperator",
+      "EntityProcessed",
       {"processed", entity, res}
     )
 
-    {:stop, :normal, state}
+    {:ok, res}
   end
 
   @doc """
@@ -90,17 +64,17 @@ defmodule EventStreamex.Operators.EntityProcessedOperator do
   ## Examples
 
   ```elixir
-  iex> EventStreamex.Operators.EntityProcessedOperator.to_unix_timestamp(nil)
+  iex> EventStreamex.Operators.EntityProcessed.to_unix_timestamp(nil)
   {:error, :no_value}
-  iex> EventStreamex.Operators.EntityProcessedOperator.to_unix_timestamp("bad arg")
+  iex> EventStreamex.Operators.EntityProcessed.to_unix_timestamp("bad arg")
   {:error, :bad_arg}
-  iex> EventStreamex.Operators.EntityProcessedOperator.to_unix_timestamp(1422057007123000)
+  iex> EventStreamex.Operators.EntityProcessed.to_unix_timestamp(1422057007123000)
   {:ok, 1422057007123000}
   iex> {:ok, datetime, 9000} = DateTime.from_iso8601("2015-01-23T23:50:07.123+02:30")
-  iex> EventStreamex.Operators.EntityProcessedOperator.to_unix_timestamp(datetime)
+  iex> EventStreamex.Operators.EntityProcessed.to_unix_timestamp(datetime)
   {:ok, 1422048007123000}
   iex> naivedatetime = NaiveDateTime.from_iso8601!("2015-01-23T23:50:07.123Z")
-  iex> EventStreamex.Operators.EntityProcessedOperator.to_unix_timestamp(naivedatetime)
+  iex> EventStreamex.Operators.EntityProcessed.to_unix_timestamp(naivedatetime)
   {:ok, 1422057007123000}
   ```
 

@@ -5,9 +5,10 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   Every event received is dispatched to operators (`EventStreamex.Operators.Operator`),
   and executed sequentially to keep ordenancing.
 
-  Every time an event is received, a task is added to the queue of events for each
+  Every time an event is received, a task is added to the queue of events with each
   operator listening for this event.
-  And everytime a an operator task is finished, it is removed from the queue.
+  And everytime a an operator task is finished, its completion status is updated in the task.
+  When all operators have finished their task for this event, it is removed from the queue.
 
   The adapters keeps a copy of this queue, mostly in case of crash (Except for `EventStreamex.Operators.Queue.NoAdapter` which does not save the queue and should not be used in production)
 
@@ -17,7 +18,7 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
 
   You can create your own adapter and set the config to use it.
 
-  Here is the full code a possible memory adapter:
+  Here is the full code of a possible memory adapter:
 
   ```elixir
   defmodule EventStreamex.Operators.Queue.MemAdapter do
@@ -37,6 +38,11 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
     @impl EventStreamex.Operators.Queue.QueueStorageAdapter
     def delete_item(item) do
       GenServer.call(__MODULE__, {:delete, item})
+    end
+
+    @impl EventStreamex.Operators.Queue.QueueStorageAdapter
+    def update_processors_status(item) do
+      GenServer.call(__MODULE__, {:update, item})
     end
 
     @impl EventStreamex.Operators.Queue.QueueStorageAdapter
@@ -69,6 +75,18 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
     end
 
     @impl true
+    def handle_call({:update, {id, item}}, _from, queue) do
+      new_queue = queue |> Enum.map(fn {i, t} ->
+        if i == id do
+          item
+        else
+          t
+        end
+      end)
+      {:reply, {:ok, new_queue}, new_queue}
+    end
+
+    @impl true
     def handle_call({_action, nil}, _from, queue) do
       {:reply, {:ok, queue}, queue}
     end
@@ -90,11 +108,13 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   Then, it must provide these functions:
   * `c:add_item/1`: Add a new item to the queue
   * `c:delete_item/1`: Delete an item from the queue
+  * `c:update_processors_status/1`: Updates the specified item
   * `c:load_queue/0`: Return the entire queue
   * `c:reset_queue/0`: Remove all items from the queue
 
   An item is a tuple containing:
-  * The operator module that processes the event
+  * The ID of the queue item
+  * The operator modules that process the event. It's a map with the module of the operator as key and a boolean as value. The boolean indicates the completion status for this operator
   * The WalEx event (more on this structure in `EventStreamex.EventListener`)
   """
 
@@ -104,10 +124,11 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   A queue item to store.
 
   An item is a tuple containing:
-  * The operator module that processes the event
+  * The ID of the queue item
+  * The operator modules that process the event. It's a map with the module of the operator as key and a boolean as value. The boolean indicates the completion status for this operator
   * The WalEx event (more on this structure in `EventStreamex.EventListener`)
   """
-  @type queue_item() :: {atom(), WalEx.Event.t()} | nil
+  @type queue_item() :: {binary(), {map(), WalEx.Event.t()}} | nil
 
   @typedoc """
   A list of `t:queue_item/0`
@@ -135,6 +156,14 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   """
   @doc since: "1.0.0"
   @callback delete_item(queue_item()) :: {:ok, term()} | {:error, term()}
+
+  @doc """
+  Updates the first item in the queue.
+
+  This is used to update the processors status from the current task
+  """
+  @doc since: "1.2.0"
+  @callback update_processors_status(queue_item()) :: {:ok, term()} | {:error, term()}
 
   @doc """
   Called at startup or in case of processor crash to return the full list of items.
@@ -181,6 +210,11 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   end
 
   @doc false
+  def update_processors_status(item) do
+    GenServer.call(__MODULE__, {:update, item})
+  end
+
+  @doc false
   def load_queue() do
     GenServer.call(__MODULE__, :load)
   end
@@ -211,6 +245,12 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
   @impl true
   def handle_call({:delete, item}, _from, queue_storage_adapter) do
     {:reply, queue_storage_adapter.delete_item(item), queue_storage_adapter}
+  end
+
+  @doc false
+  @impl true
+  def handle_call({:update, item}, _from, queue_storage_adapter) do
+    {:reply, queue_storage_adapter.update_processors_status(item), queue_storage_adapter}
   end
 
   @doc false

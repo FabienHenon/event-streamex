@@ -860,7 +860,7 @@ def create(conn, %{"post" => post_params}) do
     |> put_resp_header("location", ~p"/api/posts/#{post}")
     |> put_resp_header(
       "x-event-streamex-entity-timestamp",
-      "posts/#{EventStreamex.Operators.EntityProcessedOperator.to_unix_timestamp!(post.updated_at)}"
+      "posts/#{EventStreamex.Operators.EntityProcessed.to_unix_timestamp!(post.updated_at)}"
     )
     |> render(:show, post: post)
   end
