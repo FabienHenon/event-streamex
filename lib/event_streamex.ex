@@ -25,7 +25,6 @@ defmodule EventStreamex do
 
     children =
       [
-        {WalEx.Supervisor, get_walex_config()},
         {EventStreamex.Operators.Logger.ErrorLoggerAdapter,
          Application.get_env(
            :event_streamex,
@@ -46,7 +45,8 @@ defmodule EventStreamex do
          )},
         {EventStreamex.Operators.Queue, []},
         {EventStreamex.Operators.ProcessStatus, []},
-        {EventStreamex.Operators.Scheduler, [config: Application.get_all_env(:event_streamex)]}
+        {EventStreamex.Operators.Scheduler, [config: Application.get_all_env(:event_streamex)]},
+        {WalEx.Supervisor, get_walex_config()}
       ]
 
     Logger.debug("Starting EventStreamex")

@@ -88,6 +88,11 @@ defmodule EventStreamex.Operators.Scheduler do
       [] ->
         GenServer.cast(pid, :process_event)
 
+      :no_scheduler ->
+        # The event is enqueued and will be executed when the scheduler will
+        # be restarted anyway
+        :ok
+
       _ ->
         :ok
     end
@@ -134,7 +139,16 @@ defmodule EventStreamex.Operators.Scheduler do
   """
   @doc since: "1.2.0"
   def curr_job() do
-    :ets.tab2list(@ets_name)
+    try do
+      :ets.tab2list(@ets_name)
+    catch
+      t ->
+        Logger.warning(
+          "ETS table #{@ets_name} does not exist. This may be becuse the scheduler is not launched yet or has crashed (#{inspect(t)})"
+        )
+
+        :no_scheduler
+    end
   end
 
   defp start_operator(nil, _config) do
