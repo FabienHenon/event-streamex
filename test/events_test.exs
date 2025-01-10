@@ -86,7 +86,7 @@ defmodule EventsTest do
                         type: :insert,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -110,7 +110,7 @@ defmodule EventsTest do
                         type: :insert,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -134,7 +134,7 @@ defmodule EventsTest do
                         type: :insert,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -212,7 +212,7 @@ defmodule EventsTest do
                         type: :update,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -245,7 +245,7 @@ defmodule EventsTest do
                         type: :update,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -278,7 +278,7 @@ defmodule EventsTest do
                         type: :update,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -360,7 +360,7 @@ defmodule EventsTest do
                         type: :delete,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -384,7 +384,7 @@ defmodule EventsTest do
                         type: :delete,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",
@@ -408,7 +408,7 @@ defmodule EventsTest do
                         type: :delete,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.1.0",
+                          version: "4.4.0",
                           db: "postgres",
                           schema: "public",
                           table: "comments",

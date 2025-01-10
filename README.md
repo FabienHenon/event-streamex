@@ -20,7 +20,7 @@ The package can be installed by adding `event_streamex` to your list of dependen
 ```elixir
 def deps do
   [
-    {:event_streamex, "~> 1.0.0"}
+    {:event_streamex, "~> 1.3.0"}
   ]
 end
 ```
@@ -267,7 +267,7 @@ The event structure will look like this:
   type: :update,
   source: %WalEx.Event.Source{
     name: "WalEx",
-    version: "4.1.0",
+    version: "4.4.0",
     db: "postgresql",
     schema: "public",
     table: "comments",

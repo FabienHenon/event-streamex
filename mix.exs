@@ -5,8 +5,8 @@ defmodule EventStreamex.MixProject do
     [
       app: :event_streamex,
       description: "Add event streaming in your Elixir application, using PostgreSQL WAL",
-      version: "1.2.1",
-      elixir: "~> 1.16",
+      version: "1.3.0",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -93,13 +93,13 @@ defmodule EventStreamex.MixProject do
     [
       {:jason, "~> 1.4"},
       {:uuid, "~> 1.1"},
-      {:walex, "~> 4.1.0"},
+      {:walex, "~> 4.4.0"},
       {:telemetry, "~> 1.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
-      {:phoenix_live_view, "~> 0.20.2", only: :test},
+      {:phoenix_live_view, "~> 1.0.2", only: :test},
       {:bandit, "~> 1.2", only: :test},
-      {:phoenix_ecto, "~> 4.4", only: :test},
-      {:ecto_sql, "~> 3.10", only: :test}
+      {:phoenix_ecto, "~> 4.6", only: :test},
+      {:ecto_sql, "~> 3.12", only: :test}
     ]
   end
 
