@@ -14,7 +14,7 @@ defmodule EventStreamex.Operators.Queue.QueueStorageAdapter do
 
   There are currently 2 queue adapters:
   * `EventStreamex.Operators.Queue.DbAdapter`: A queue that uses the database tu store its items (This is the default queue adapter)
-  * `EventStreamex.Operators.Queue.NOAdapter`: A queue that does not store its items
+  * `EventStreamex.Operators.Queue.NoAdapter`: A queue that does not store its items
 
   You can create your own adapter and set the config to use it.
 
