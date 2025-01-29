@@ -969,4 +969,105 @@ defmodule EventListenerTest do
       assert_receive :test_direct, 1000
     end
   end
+
+  defmodule MultiScopesLiveView do
+    use Phoenix.LiveView
+
+    use EventStreamex.EventListener,
+      schemas: [
+        %{schema: "comments", subscriptions: [%{scopes: [post_id: "posts"]}]},
+        %{schema: "posts", subscriptions: [:unscoped]}
+      ]
+  end
+
+  describe "MultiScopesLiveView" do
+    test "mount/3", %{socket: socket} do
+      {:ok, new_socket} = MultiScopesLiveView.mount(%{}, %{}, socket)
+
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "posts" => %{event_params: %{}, subscribed?: %{direct: false, unscoped: true}}
+               }
+             }
+
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test_comments)
+      Utils.PubSub.broadcast(:adapter_name, "posts", :test_posts)
+
+      refute_receive :test_comments, 100
+      assert_receive :test_posts, 1000
+    end
+
+    test "handle_params/3 with bad params", %{socket: socket} do
+      {:ok, new_socket} = MultiScopesLiveView.mount(%{}, %{}, socket)
+
+      {:noreply, new_socket} =
+        MultiScopesLiveView.handle_params(%{"bad" => "bad"}, %{}, new_socket)
+
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "posts" => %{event_params: %{}, subscribed?: %{direct: false, unscoped: true}}
+               }
+             }
+
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test_comments)
+      Utils.PubSub.broadcast(:adapter_name, "posts", :test_posts)
+
+      refute_receive :test_comments, 100
+      assert_receive :test_posts, 1000
+    end
+
+    test "handle_params/3 with correct params", %{socket: socket} do
+      {:ok, new_socket} = MultiScopesLiveView.mount(%{}, %{}, socket)
+
+      {:noreply, new_socket} =
+        MultiScopesLiveView.handle_params(%{"post_id" => "123"}, %{}, new_socket)
+
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "comments" => %{
+                   event_params: %{"post_id" => "123"},
+                   subscribed?: %{:direct => false, :unscoped => false, "post_id:posts" => true}
+                 },
+                 "posts" => %{
+                   event_params: %{},
+                   subscribed?: %{:direct => false, :unscoped => true}
+                 }
+               }
+             }
+
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test_comments)
+      Utils.PubSub.broadcast(:adapter_name, "posts", :test_posts)
+
+      assert_receive :test_comments, 1000
+      assert_receive :test_posts, 1000
+    end
+
+    test "terminate/2", %{socket: socket} do
+      {:ok, new_socket} = MultiScopesLiveView.mount(%{}, %{}, socket)
+
+      {:noreply, new_socket} =
+        MultiScopesLiveView.handle_params(%{"post_id" => "123"}, %{}, new_socket)
+
+      new_socket = MultiScopesLiveView.terminate(:normal, new_socket)
+
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "comments" => %{
+                   event_params: %{"post_id" => "123"},
+                   subscribed?: %{:direct => false, :unscoped => false, "post_id:posts" => false}
+                 },
+                 "posts" => %{
+                   subscribed?: %{direct: false, unscoped: false},
+                   event_params: %{}
+                 }
+               }
+             }
+
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test_comments)
+      Utils.PubSub.broadcast(:adapter_name, "posts", :test_posts)
+
+      refute_receive :test_comments, 100
+      refute_receive :test_posts, 100
+    end
+  end
 end

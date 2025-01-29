@@ -83,11 +83,11 @@ defmodule EventStreamex.EventListener do
   changes in `Phoenix.LiveView.mount/3`, `Phoenix.LiveView.terminate/3` and `Phoenix.LiveView.handle_params/3`
   callbacks.
 
-  That means that is you override these callbacks you have to call the `super` function
+  That means that if you override these callbacks you have to call the `super` function
   so that the "magic" is done.
 
   The "magic" in question is a subscription to several channels in a pubsub module.
-  There are 3 kinds a channels this module will automatically subscribe to:
+  There are 3 kinds of channels this module will automatically subscribe to:
   * `direct`: We subscribe to a specific entity changes (by it's ID)
   * `unscoped`: We subscribes to changes of all entities in a table
   * `scopes`: We subscribe to changes in entities that match a specific scope (like having a specific `post_id` in the example above)
@@ -121,7 +121,7 @@ defmodule EventStreamex.EventListener do
       subscriptions: [:direct]
   ```
 
-  That means that if you want to subscription to be effective, you will have to receive the id of entity
+  That means that if you want the subscription to be effective, you will have to receive the id of entity
   in the params.
   Or, pass it manually when you call the `super` function:
 
@@ -549,6 +549,10 @@ defmodule EventStreamex.EventListener do
 
   ## Subscribing to other entities' events
 
+  You have 2 ways to listen for several entities
+
+  ### Dynamically
+
   Let's say you display posts and handle their creation.
   And when a new post is created you want to redirect to the detail page
   of this new post.
@@ -568,18 +572,18 @@ defmodule EventStreamex.EventListener do
   subscribe_entity(socket, "post_with_comments_count", :direct, %{"id" => post_id})
   ```
 
-  ### Params
+  #### Params
 
   * `socket`: The socket
   * `entity_name`: The entity name to listen to as a string
   * `subscription`: The kind of channel you want to listen to (these are the same as for the module configuration: `:direct`, `:unscoped`, `%{scopes: []}`)
   * `params`: A map with the parameters needed for `:direct` and `:scopes` scopes.
 
-  ### Return value
+  #### Return value
 
   The updated `socket`
 
-  ### Received events
+  #### Received events
 
   Events are received the same way as other events but related to the entity:
 
@@ -588,6 +592,36 @@ defmodule EventStreamex.EventListener do
   def handle_info({:on_insert, :direct, "post_with_comments_count", post}, socket) do
     {:noreply, socket |> push_navigate(to: "/posts/\#{post.id}")}
   end
+  ```
+
+  ### From the `using` macro
+
+  You can also subscribe to several entities directly when you `use` the `EventListener`.
+
+  Insead of using `schema` and `subscriptions`, you can use `schemas` with an array of subscriptions.
+  This array can be:
+  * An array of schemas (binaries)
+  * An array of structures with `schema` and `subscriptions` (with `subscriptions` being optional)
+
+  Some examples:
+
+  ```
+  # Listens to `comments` with a scope
+  use EventStreamex.EventListener,
+      schema: "comments",
+      subscriptions: [%{scopes: [post_id: "posts"]}]
+
+  # Listens to `comments` and `posts` with default `direct` and `unscoped` scopes
+  use EventStreamex.EventListener, schemas: ["comments", "posts"]
+
+  # Same
+  use EventStreamex.EventListener, schemas: [%{schema: "comments"}, %{schema: "posts"}]
+
+  # Now, they both listen only for `direct` events
+  use EventStreamex.EventListener, schemas: [%{schema: "comments"}, %{schema: "posts"}], subscriptions: [:direct]
+
+  # Now, while `comments` listens for `unscoped`, `posts` still listens for `direct` events
+  use EventStreamex.EventListener, schemas: [%{schema: "comments", subscriptions: [:unscoped]}, %{schema: "posts"}], subscriptions: [:direct]
   ```
 
   ## Unsubscribing to other entities' events
@@ -626,9 +660,40 @@ defmodule EventStreamex.EventListener do
   defmacro __using__(opts) do
     table_name = Keyword.get(opts, :schema, nil)
     subscriptions = Keyword.get(opts, :subscriptions, [:direct, :unscoped])
+    schemas = Keyword.get(opts, :schemas, nil)
     application = Keyword.get(opts, :application, Application)
 
-    if(is_nil(table_name), do: raise("schema attribute not set in EventStreamex.EventListener"))
+    if(is_nil(table_name) && is_nil(schemas),
+      do: raise("you must either set schemas attribute or schema")
+    )
+
+    if(!is_nil(schemas) && !is_list(schemas),
+      do: raise("schemas attribute must be a list of schemas to listen to")
+    )
+
+    schemas =
+      if is_nil(schemas) do
+        quote(do: [%{schema: unquote(table_name), subscriptions: unquote(subscriptions)}])
+      else
+        quote do
+          unquote(schemas)
+          |> Enum.map(fn
+            %{schema: _s, subscriptions: _sub} = sc ->
+              sc
+
+            %{schema: s} ->
+              %{schema: s, subscriptions: unquote(subscriptions)}
+
+            schema when is_binary(schema) ->
+              %{schema: schema, subscriptions: unquote(subscriptions)}
+
+            t ->
+              raise(
+                "#{inspect(t)} must be either a binary, or a struct with a schema field (and a subscriptions optional field)"
+              )
+          end)
+        end
+      end
 
     source_modules = __CALLER__.context_modules |> Enum.map(&Atom.to_string/1) |> Enum.join("/")
 
@@ -638,21 +703,24 @@ defmodule EventStreamex.EventListener do
 
       def mount(_params, _session, socket) do
         {:ok,
-         handle_subscriptions(
-           fn channel ->
-             [adapter: pubsub_adapter, name: pubsub] =
-               unquote(application).get_env(:event_streamex, :pubsub)
+         unquote(schemas)
+         |> Enum.reduce(socket, fn %{schema: schema, subscriptions: subs}, s ->
+           handle_subscriptions(
+             fn channel ->
+               [adapter: pubsub_adapter, name: pubsub] =
+                 unquote(application).get_env(:event_streamex, :pubsub)
 
-             pubsub_adapter.subscribe(pubsub, channel)
-           end,
-           :subscribed,
-           socket,
-           unquote(table_name),
-           unquote(subscriptions),
-           unquote(source_modules),
-           %{},
-           &Phoenix.LiveView.put_private/3
-         )}
+               pubsub_adapter.subscribe(pubsub, channel)
+             end,
+             :subscribed,
+             s,
+             schema,
+             subs,
+             unquote(source_modules),
+             %{},
+             &Phoenix.LiveView.put_private/3
+           )
+         end)}
       end
 
       def terminate(_reason, socket) do
@@ -682,21 +750,24 @@ defmodule EventStreamex.EventListener do
 
       def handle_params(params, _url, socket) do
         {:noreply,
-         handle_subscriptions(
-           fn channel ->
-             [adapter: pubsub_adapter, name: pubsub] =
-               unquote(application).get_env(:event_streamex, :pubsub)
+         unquote(schemas)
+         |> Enum.reduce(socket, fn %{schema: schema, subscriptions: subs}, s ->
+           handle_subscriptions(
+             fn channel ->
+               [adapter: pubsub_adapter, name: pubsub] =
+                 unquote(application).get_env(:event_streamex, :pubsub)
 
-             pubsub_adapter.subscribe(pubsub, channel)
-           end,
-           :subscribed,
-           socket,
-           unquote(table_name),
-           unquote(subscriptions),
-           unquote(source_modules),
-           params,
-           &Phoenix.LiveView.put_private/3
-         )}
+               pubsub_adapter.subscribe(pubsub, channel)
+             end,
+             :subscribed,
+             s,
+             schema,
+             subs,
+             unquote(source_modules),
+             params,
+             &Phoenix.LiveView.put_private/3
+           )
+         end)}
       end
 
       def handle_info(
