@@ -80,7 +80,7 @@ defmodule EventStreamex.EventListener do
   ## How it works
 
   `use EventStreamex.EventListener` will do the "magic" by subscribing to the entity
-  changes in `Phoenix.LiveView.mount/3`, `Phoenix.LiveView.terminate/3` and `Phoenix.LiveView.handle_params/3`
+  changes in `Phoenix.LiveView.mount/3` and `Phoenix.LiveView.handle_params/3`
   callbacks.
 
   That means that if you override these callbacks you have to call the `super` function
@@ -497,8 +497,8 @@ defmodule EventStreamex.EventListener do
 
   ## Unsubscribing from events
 
-  The unsubscribe from events is done automatically in the `c:Phoenix.LiveView.terminate/3` callback.
-  You do not have anything to do except for calling the `super` function if you override this callback.
+  The unsubscribe from events is done automatically in when the process exists (each LiveView is monitored).
+  You do not have anything to do.
 
   ## Handling subscriptions later
 
@@ -544,8 +544,8 @@ defmodule EventStreamex.EventListener do
   Here, I don't have to call the `super()` function because I do not need
   the `EventListener` to handle the subscriptions as I do it manually.
 
-  You don't have to handle the unsubscribe either because it will be done for you in the
-  `Phoenix.LiveView.terminate/3` callback.
+  You don't have to handle the unsubscribe either because it will be done for you
+  when the LiveView exits.
 
   ## Subscribing to other entities' events
 
@@ -702,31 +702,43 @@ defmodule EventStreamex.EventListener do
       import EventStreamex.EventListener
 
       def mount(_params, _session, socket) do
-        {:ok,
-         unquote(schemas)
-         |> Enum.reduce(socket, fn %{schema: schema, subscriptions: subs}, s ->
-           handle_subscriptions(
-             fn channel ->
-               [adapter: pubsub_adapter, name: pubsub] =
-                 unquote(application).get_env(:event_streamex, :pubsub)
+        new_socket =
+          unquote(schemas)
+          |> Enum.reduce(socket, fn %{schema: schema, subscriptions: subs}, s ->
+            handle_subscriptions(
+              fn channel ->
+                [adapter: pubsub_adapter, name: pubsub] =
+                  unquote(application).get_env(:event_streamex, :pubsub)
 
-               pubsub_adapter.subscribe(pubsub, channel)
-             end,
-             :subscribed,
-             s,
-             schema,
-             subs,
-             unquote(source_modules),
-             %{},
-             &Phoenix.LiveView.put_private/3
-           )
-         end)}
+                pubsub_adapter.subscribe(pubsub, channel)
+              end,
+              :subscribed,
+              s,
+              schema,
+              subs,
+              unquote(source_modules),
+              %{},
+              &Phoenix.LiveView.put_private/3
+            )
+          end)
+
+        if Phoenix.LiveView.connected?(new_socket) do
+          EventStreamex.Events.LiveViewMonitor.monitor(
+            self(),
+            __MODULE__,
+            get_view_state(new_socket)
+          )
+        end
+
+        {:ok, new_socket}
       end
 
-      def terminate(_reason, socket) do
-        socket.private
+      def unsubscribe_all(_reason, subscriptions_state) do
+        fake_socket = %{private: %{subscriptions: subscriptions_state}}
+
+        fake_socket.private
         |> subscribed_entities()
-        |> Enum.reduce(socket, fn entity, s ->
+        |> Enum.reduce(fake_socket, fn entity, s ->
           {_subscription_state, event_params} =
             get_subscribe_state(s.private, entity)
 
@@ -743,31 +755,40 @@ defmodule EventStreamex.EventListener do
             get_entity_current_subscriptions(s.private, entity),
             unquote(source_modules),
             event_params,
-            &Phoenix.LiveView.put_private/3
+            fn socket, key, value ->
+              %{socket | private: Map.put(socket.private, key, value)}
+            end
           )
         end)
       end
 
       def handle_params(params, _url, socket) do
-        {:noreply,
-         unquote(schemas)
-         |> Enum.reduce(socket, fn %{schema: schema, subscriptions: subs}, s ->
-           handle_subscriptions(
-             fn channel ->
-               [adapter: pubsub_adapter, name: pubsub] =
-                 unquote(application).get_env(:event_streamex, :pubsub)
+        new_socket =
+          unquote(schemas)
+          |> Enum.reduce(socket, fn %{schema: schema, subscriptions: subs}, s ->
+            handle_subscriptions(
+              fn channel ->
+                [adapter: pubsub_adapter, name: pubsub] =
+                  unquote(application).get_env(:event_streamex, :pubsub)
 
-               pubsub_adapter.subscribe(pubsub, channel)
-             end,
-             :subscribed,
-             s,
-             schema,
-             subs,
-             unquote(source_modules),
-             params,
-             &Phoenix.LiveView.put_private/3
-           )
-         end)}
+                pubsub_adapter.subscribe(pubsub, channel)
+              end,
+              :subscribed,
+              s,
+              schema,
+              subs,
+              unquote(source_modules),
+              params,
+              &Phoenix.LiveView.put_private/3
+            )
+          end)
+
+        EventStreamex.Events.LiveViewMonitor.update_state(
+          self(),
+          get_view_state(new_socket)
+        )
+
+        {:noreply, new_socket}
       end
 
       def handle_info(
@@ -788,7 +809,7 @@ defmodule EventStreamex.EventListener do
           ),
           do: {:noreply, socket}
 
-      defoverridable mount: 3, terminate: 2, handle_params: 3, handle_info: 2
+      defoverridable mount: 3, handle_params: 3, handle_info: 2
 
       @doc """
       Manually handles subscriptions, if the parameters used for scoped channels
@@ -830,8 +851,8 @@ defmodule EventStreamex.EventListener do
       Here, I don't have to call the `super()` function because I do not need
       the `EventListener` to handle the subscriptions as I do it manually.
 
-      You don't have to handle the unsubscribe either because it will be done for you in the
-      `c:Phoenix.LiveView.terminate/3` callback.
+      You don't have to handle the unsubscribe either because it will be done for you
+      when the LiveView exits.
       """
       def handle_subscriptions(socket, params) do
         handle_subscriptions(
@@ -1229,4 +1250,7 @@ defmodule EventStreamex.EventListener do
       {scopes, _} -> deserialize_scopes(scopes)
     end)
   end
+
+  @doc false
+  def get_view_state(socket), do: Map.get(socket.private, :subscriptions, %{})
 end

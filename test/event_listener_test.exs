@@ -2,7 +2,7 @@ defmodule EventListenerTest do
   use ExUnit.Case, async: false
 
   setup do
-    %{socket: %Phoenix.LiveView.Socket{private: %{}}}
+    %{socket: %Phoenix.LiveView.Socket{private: %{}, transport_pid: self()}}
   end
 
   defmodule ScopeLiveView do
@@ -53,10 +53,12 @@ defmodule EventListenerTest do
       assert_receive :test, 1000
     end
 
-    test "terminate/2", %{socket: socket} do
+    test "unsubscribe_all/2", %{socket: socket} do
       {:ok, new_socket} = ScopeLiveView.mount(%{}, %{}, socket)
       {:noreply, new_socket} = ScopeLiveView.handle_params(%{"post_id" => "123"}, %{}, new_socket)
-      new_socket = ScopeLiveView.terminate(:normal, new_socket)
+
+      new_socket =
+        ScopeLiveView.unsubscribe_all(:normal, Map.get(new_socket.private, :subscriptions, %{}))
 
       assert new_socket.private == %{
                subscriptions: %{
@@ -146,7 +148,7 @@ defmodule EventListenerTest do
       assert_receive :test, 1000
     end
 
-    test "terminate/2", %{socket: socket} do
+    test "unsubscribe_all/2", %{socket: socket} do
       {:ok, new_socket} = ComplexScopeLiveView.mount(%{}, %{}, socket)
 
       {:noreply, new_socket} =
@@ -156,7 +158,11 @@ defmodule EventListenerTest do
           new_socket
         )
 
-      new_socket = ComplexScopeLiveView.terminate(:normal, new_socket)
+      new_socket =
+        ComplexScopeLiveView.unsubscribe_all(
+          :normal,
+          Map.get(new_socket.private, :subscriptions, %{})
+        )
 
       assert new_socket.private == %{
                subscriptions: %{
@@ -200,10 +206,11 @@ defmodule EventListenerTest do
       assert_receive :test, 1000
     end
 
-    test "terminate/2", %{socket: socket} do
+    test "unsubscribe_all/2", %{socket: socket} do
       {:ok, new_socket} = UnscopeLiveView.mount(%{}, %{}, socket)
 
-      new_socket = UnscopeLiveView.terminate(:normal, new_socket)
+      new_socket =
+        UnscopeLiveView.unsubscribe_all(:normal, Map.get(new_socket.private, :subscriptions, %{}))
 
       assert new_socket.private == %{
                subscriptions: %{
@@ -272,13 +279,17 @@ defmodule EventListenerTest do
       assert_receive :test, 1000
     end
 
-    test "terminate/2", %{socket: socket} do
+    test "unsubscribe_all/2", %{socket: socket} do
       {:ok, new_socket} = DirectScopeLiveView.mount(%{}, %{}, socket)
 
       {:noreply, new_socket} =
         DirectScopeLiveView.handle_params(%{"id" => "89"}, %{}, new_socket)
 
-      new_socket = DirectScopeLiveView.terminate(:normal, new_socket)
+      new_socket =
+        DirectScopeLiveView.unsubscribe_all(
+          :normal,
+          Map.get(new_socket.private, :subscriptions, %{})
+        )
 
       assert new_socket.private == %{
                subscriptions: %{
@@ -420,7 +431,7 @@ defmodule EventListenerTest do
       assert_receive :test_direct, 1000
     end
 
-    test "terminate/2", %{socket: socket} do
+    test "unsubscribe_all/2", %{socket: socket} do
       {:ok, new_socket} = AllScopesLiveView.mount(%{}, %{}, socket)
 
       {:noreply, new_socket} =
@@ -430,7 +441,11 @@ defmodule EventListenerTest do
           new_socket
         )
 
-      new_socket = AllScopesLiveView.terminate(:normal, new_socket)
+      new_socket =
+        AllScopesLiveView.unsubscribe_all(
+          :normal,
+          Map.get(new_socket.private, :subscriptions, %{})
+        )
 
       assert new_socket.private == %{
                subscriptions: %{
@@ -744,7 +759,7 @@ defmodule EventListenerTest do
       assert_receive :test_direct, 1000
     end
 
-    test "terminate/2", %{socket: socket} do
+    test "unsubscribe_all/2", %{socket: socket} do
       new_socket =
         socket
         |> AllScopesAndExternalSubscriptionLiveView.subscribe_entity(
@@ -766,7 +781,11 @@ defmodule EventListenerTest do
           :unscoped
         )
 
-      new_socket = AllScopesAndExternalSubscriptionLiveView.terminate(:normal, new_socket)
+      new_socket =
+        AllScopesAndExternalSubscriptionLiveView.unsubscribe_all(
+          :normal,
+          Map.get(new_socket.private, :subscriptions, %{})
+        )
 
       assert new_socket.private == %{
                subscriptions: %{
@@ -1042,13 +1061,17 @@ defmodule EventListenerTest do
       assert_receive :test_posts, 1000
     end
 
-    test "terminate/2", %{socket: socket} do
+    test "unsubscribe_all/2", %{socket: socket} do
       {:ok, new_socket} = MultiScopesLiveView.mount(%{}, %{}, socket)
 
       {:noreply, new_socket} =
         MultiScopesLiveView.handle_params(%{"post_id" => "123"}, %{}, new_socket)
 
-      new_socket = MultiScopesLiveView.terminate(:normal, new_socket)
+      new_socket =
+        MultiScopesLiveView.unsubscribe_all(
+          :normal,
+          Map.get(new_socket.private, :subscriptions, %{})
+        )
 
       assert new_socket.private == %{
                subscriptions: %{
@@ -1062,6 +1085,90 @@ defmodule EventListenerTest do
                  }
                }
              }
+
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test_comments)
+      Utils.PubSub.broadcast(:adapter_name, "posts", :test_posts)
+
+      refute_receive :test_comments, 100
+      refute_receive :test_posts, 100
+    end
+  end
+
+  defmodule GenServerLiveView do
+    use GenServer
+
+    use EventStreamex.EventListener,
+      schemas: [
+        %{schema: "comments", subscriptions: [%{scopes: [post_id: "posts"]}]},
+        %{schema: "posts", subscriptions: [:unscoped]}
+      ]
+
+    def start({parent_pid, socket}) do
+      GenServer.start(__MODULE__, {parent_pid, socket})
+    end
+
+    def do_mount(pid, params) do
+      GenServer.call(pid, {:do_mount, params})
+    end
+
+    def do_handle_params(pid, params) do
+      GenServer.call(pid, {:do_handle_params, params})
+    end
+
+    @impl true
+    def init({parent_pid, socket}) do
+      {:ok, {parent_pid, socket}}
+    end
+
+    @impl true
+    def handle_call({:do_mount, params}, _from, {parent_pid, socket}) do
+      {:ok, new_socket} = mount(params, %{}, socket)
+
+      {:reply, new_socket, {parent_pid, new_socket}}
+    end
+
+    @impl true
+    def handle_call({:do_handle_params, params}, _from, {parent_pid, socket}) do
+      {:noreply, new_socket} = handle_params(params, %{}, socket)
+
+      {:reply, new_socket, {parent_pid, new_socket}}
+    end
+
+    @impl true
+    def handle_info(message, {parent_pid, socket}) do
+      send(parent_pid, message)
+      {:noreply, {parent_pid, socket}}
+    end
+  end
+
+  describe "GenServerLiveView" do
+    test "Check all channels are unsubscribed when process is killed", %{socket: socket} do
+      {:ok, pid} = GenServerLiveView.start({self(), socket})
+      _new_socket = GenServerLiveView.do_mount(pid, %{})
+
+      new_socket =
+        GenServerLiveView.do_handle_params(pid, %{"post_id" => "123"})
+
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "comments" => %{
+                   event_params: %{"post_id" => "123"},
+                   subscribed?: %{:direct => false, :unscoped => false, "post_id:posts" => true}
+                 },
+                 "posts" => %{
+                   event_params: %{},
+                   subscribed?: %{:direct => false, :unscoped => true}
+                 }
+               }
+             }
+
+      Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test_comments)
+      Utils.PubSub.broadcast(:adapter_name, "posts", :test_posts)
+
+      assert_receive :test_comments, 1000
+      assert_receive :test_posts, 1000
+
+      Process.exit(pid, :kill)
 
       Utils.PubSub.broadcast(:adapter_name, "posts/123/comments", :test_comments)
       Utils.PubSub.broadcast(:adapter_name, "posts", :test_posts)

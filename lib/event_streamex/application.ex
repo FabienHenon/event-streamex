@@ -8,6 +8,7 @@ defmodule EventStreamex.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      {EventStreamex.Events.LiveViewMonitor, []},
       {EventStreamex.Orchestrator, []}
     ]
 
