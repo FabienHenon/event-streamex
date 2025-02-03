@@ -701,7 +701,7 @@ defmodule EventStreamex.EventListener do
       require Logger
       import EventStreamex.EventListener
 
-      def mount(_params, _session, socket) do
+      def mount(params, _session, socket) do
         new_socket =
           unquote(schemas)
           |> Enum.reduce(socket, fn %{schema: schema, subscriptions: subs}, s ->
@@ -717,7 +717,7 @@ defmodule EventStreamex.EventListener do
               schema,
               subs,
               unquote(source_modules),
-              %{},
+              params,
               &Phoenix.LiveView.put_private/3
             )
           end)
