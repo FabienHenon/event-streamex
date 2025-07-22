@@ -504,7 +504,7 @@ defmodule OperatorsTest do
                      type: :insert,
                      source: %WalEx.Event.Source{
                        name: "WalEx",
-                       version: "4.4.0",
+                       version: "4.7.0",
                        db: "postgres",
                        schema: "public",
                        table: "long_operators",
@@ -525,7 +525,7 @@ defmodule OperatorsTest do
                      type: :insert,
                      source: %WalEx.Event.Source{
                        name: "WalEx",
-                       version: "4.4.0",
+                       version: "4.7.0",
                        db: "postgres",
                        schema: "public",
                        table: "filtered_operators",
@@ -605,7 +605,7 @@ defmodule OperatorsTest do
                         type: :insert,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "base_entities1",
@@ -642,7 +642,7 @@ defmodule OperatorsTest do
                         type: :insert,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "base_entities2",
@@ -673,7 +673,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -713,7 +713,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -744,7 +744,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -783,7 +783,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -817,7 +817,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -856,7 +856,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -890,7 +890,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -921,7 +921,7 @@ defmodule OperatorsTest do
                         new_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -960,7 +960,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -994,7 +994,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -1025,7 +1025,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "merged_entities",
@@ -1075,7 +1075,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "complex_entities",
@@ -1109,7 +1109,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "complex_entities",
@@ -1143,7 +1143,7 @@ defmodule OperatorsTest do
                         old_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "complex_entities",
@@ -1174,7 +1174,7 @@ defmodule OperatorsTest do
                         new_record: nil,
                         source: %WalEx.Event.Source{
                           name: "WalEx",
-                          version: "4.4.0",
+                          version: "4.7.0",
                           db: "postgres",
                           schema: "public",
                           table: "complex_entities",

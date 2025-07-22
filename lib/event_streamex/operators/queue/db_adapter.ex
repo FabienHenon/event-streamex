@@ -199,12 +199,12 @@ defmodule EventStreamex.Operators.Queue.DbAdapter do
         date_time
 
       _ ->
-        WalEx.Types.cast_record(record, "timestamp")
+        WalEx.Casting.Types.cast_record(record, "timestamp")
     end
   end
 
   defp cast_type(value, type) do
-    WalEx.Types.cast_record(value, type)
+    WalEx.Casting.Types.cast_record(value, type)
   end
 
   # Callbacks

@@ -38,7 +38,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -66,7 +66,7 @@ defmodule QueueDbAdapterTest do
                       type: :insert,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -103,7 +103,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -129,7 +129,7 @@ defmodule QueueDbAdapterTest do
             type: :update,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -155,7 +155,7 @@ defmodule QueueDbAdapterTest do
             type: :delete,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -183,7 +183,7 @@ defmodule QueueDbAdapterTest do
                       type: :insert,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -206,7 +206,7 @@ defmodule QueueDbAdapterTest do
                       type: :update,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -229,7 +229,7 @@ defmodule QueueDbAdapterTest do
                       type: :delete,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -264,7 +264,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -290,7 +290,7 @@ defmodule QueueDbAdapterTest do
             type: :delete,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -318,7 +318,7 @@ defmodule QueueDbAdapterTest do
                       type: :insert,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -341,7 +341,7 @@ defmodule QueueDbAdapterTest do
                       type: :delete,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -378,7 +378,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -404,7 +404,7 @@ defmodule QueueDbAdapterTest do
             type: :update,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -430,7 +430,7 @@ defmodule QueueDbAdapterTest do
             type: :delete,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -456,7 +456,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -484,7 +484,7 @@ defmodule QueueDbAdapterTest do
                       type: :update,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -507,7 +507,7 @@ defmodule QueueDbAdapterTest do
                       type: :delete,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -546,7 +546,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -572,7 +572,7 @@ defmodule QueueDbAdapterTest do
             type: :update,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -602,7 +602,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -634,7 +634,7 @@ defmodule QueueDbAdapterTest do
                       type: :insert,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -657,7 +657,7 @@ defmodule QueueDbAdapterTest do
                       type: :update,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",
@@ -689,7 +689,7 @@ defmodule QueueDbAdapterTest do
             type: :insert,
             source: %WalEx.Event.Source{
               name: "WalEx",
-              version: "4.4.0",
+              version: "4.7.0",
               db: "postgres",
               schema: "public",
               table: "comments",
@@ -717,7 +717,7 @@ defmodule QueueDbAdapterTest do
                       type: :update,
                       source: %WalEx.Event.Source{
                         name: "WalEx",
-                        version: "4.4.0",
+                        version: "4.7.0",
                         db: "postgres",
                         schema: "public",
                         table: "comments",

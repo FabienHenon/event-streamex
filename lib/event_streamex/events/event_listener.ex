@@ -462,7 +462,7 @@ defmodule EventStreamex.EventListener do
     type: :update,
     source: %WalEx.Event.Source{
       name: "WalEx",
-      version: "4.4.0",
+      version: "4.7.0",
       db: "postgresql",
       schema: "public",
       table: "comments",
