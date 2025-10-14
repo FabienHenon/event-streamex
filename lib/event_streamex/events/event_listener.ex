@@ -717,7 +717,7 @@ defmodule EventStreamex.EventListener do
               schema,
               subs,
               unquote(source_modules),
-              params,
+              merge_params_for_schema(params, schema),
               &Phoenix.LiveView.put_private/3
             )
           end)
@@ -778,7 +778,7 @@ defmodule EventStreamex.EventListener do
               schema,
               subs,
               unquote(source_modules),
-              params,
+              merge_params_for_schema(params, schema),
               &Phoenix.LiveView.put_private/3
             )
           end)
@@ -867,7 +867,7 @@ defmodule EventStreamex.EventListener do
           unquote(table_name),
           unquote(subscriptions),
           unquote(source_modules),
-          params,
+          merge_params_for_schema(params, unquote(table_name)),
           &Phoenix.LiveView.put_private/3
         )
       end
@@ -976,6 +976,55 @@ defmodule EventStreamex.EventListener do
           event_params,
           &Phoenix.LiveView.put_private/3
         )
+      end
+
+      @doc """
+      Scopes (nests) a set of params under a schema key inside an existing params map.
+
+      Given a params map, a schema identifier (used as the key), and a map of schema-specific
+      attributes, this function inserts (or replaces) the entry at that key with the provided
+      schema params.
+
+      Returns the updated params map.
+
+      Replacement behavior:
+      If the key already exists in the params map, its value is overwritten with the new
+      `schema_params`.
+
+      This is useful when you listen to several entities that needs the same parameters.
+
+      For instance, if you listen to a `user` entity and a `post` entity in a `:direct` scope,
+      both will need an `id` parameter. Hovewer, this ID will be different for each entity.
+      So you can use this function to scope the params for each entity before passing them to
+      the `handle_subscriptions/2` or `super/3` functions:
+
+      ```elixir
+      def handle_params(%{"user_id" => user_id, "post_id" => post_id} = params, url, socket) do
+        scoped_params =
+          %{}
+          |> scope_params_for_schema("users", %{"id" => user_id})
+          |> scope_params_for_schema("posts", %{"id" => post_id})
+
+        {_res, socket} = super(scoped_params, url, socket)
+
+        #...
+      end
+      ```
+
+      Examples:
+
+        iex> scope_params_for_schema(%{}, "users", %{"id" => "Jane"})
+        %{"users" => %{"id" => "Jane"}}
+
+      @param params The original (possibly already scoped) parameters map.
+      @param schema The key (atom or binary) under which to place the schema params.
+      @param schema_params The map of attributes belonging to the schema.
+      @return The params map with the schema params scoped under the given key.
+
+      """
+      @spec scope_params_for_schema(map(), atom() | binary(), map()) :: map()
+      def scope_params_for_schema(params, schema, schema_params) do
+        Map.put(params, schema, schema_params)
       end
     end
   end
@@ -1235,6 +1284,16 @@ defmodule EventStreamex.EventListener do
     private
     |> Map.get(:subscriptions, %{})
     |> Map.keys()
+  end
+
+  @doc false
+  def merge_params_for_schema(params, schema) do
+    # If, in params, we have a key <schema>, we merge its map into params
+    case Map.get(params, schema) do
+      nil -> params
+      map when is_map(map) -> Map.merge(params, map)
+      _ -> params
+    end
   end
 
   @doc false

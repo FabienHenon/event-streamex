@@ -1177,4 +1177,199 @@ defmodule EventListenerTest do
       refute_receive :test_posts, 100
     end
   end
+
+  describe "scope_params_for_schema/3" do
+    defmodule TestLiveView do
+      use Phoenix.LiveView
+
+      use EventStreamex.EventListener,
+        schema: "comments",
+        subscriptions: [:direct]
+    end
+
+    test "scopes params under schema key with empty params map" do
+      result = TestLiveView.scope_params_for_schema(%{}, "users", %{"id" => "123"})
+
+      assert result == %{"users" => %{"id" => "123"}}
+    end
+
+    test "scopes params under schema key with existing params" do
+      params = %{"other_key" => "other_value"}
+      result = TestLiveView.scope_params_for_schema(params, "users", %{"id" => "123"})
+
+      assert result == %{
+               "other_key" => "other_value",
+               "users" => %{"id" => "123"}
+             }
+    end
+
+    test "replaces existing schema params when schema key already exists" do
+      params = %{"users" => %{"id" => "456", "name" => "John"}}
+      result = TestLiveView.scope_params_for_schema(params, "users", %{"id" => "123"})
+
+      assert result == %{"users" => %{"id" => "123"}}
+    end
+
+    test "works with atom schema keys" do
+      result = TestLiveView.scope_params_for_schema(%{}, :users, %{"id" => "123"})
+
+      assert result == %{:users => %{"id" => "123"}}
+    end
+
+    test "works with string schema keys" do
+      result = TestLiveView.scope_params_for_schema(%{}, "users", %{"id" => "123"})
+
+      assert result == %{"users" => %{"id" => "123"}}
+    end
+
+    test "supports chaining multiple calls" do
+      result =
+        %{}
+        |> TestLiveView.scope_params_for_schema("users", %{"id" => "user_123"})
+        |> TestLiveView.scope_params_for_schema("posts", %{"id" => "post_456"})
+
+      assert result == %{
+               "users" => %{"id" => "user_123"},
+               "posts" => %{"id" => "post_456"}
+             }
+    end
+
+    test "handles complex schema params" do
+      schema_params = %{
+        "id" => "123",
+        "name" => "John Doe",
+        "settings" => %{"theme" => "dark"}
+      }
+
+      result = TestLiveView.scope_params_for_schema(%{}, "users", schema_params)
+
+      assert result == %{"users" => schema_params}
+    end
+
+    test "handles empty schema params" do
+      result = TestLiveView.scope_params_for_schema(%{"existing" => "value"}, "users", %{})
+
+      assert result == %{
+               "existing" => "value",
+               "users" => %{}
+             }
+    end
+  end
+
+  describe "scope_params_for_schema/3 integration with LiveView functions" do
+    defmodule MultiDirectLiveView do
+      use Phoenix.LiveView
+
+      use EventStreamex.EventListener,
+        schemas: [
+          %{schema: "users", subscriptions: [:direct]},
+          %{schema: "posts", subscriptions: [:direct]}
+        ]
+    end
+
+    test "mount/3 with scoped params for multiple direct subscriptions", %{socket: socket} do
+      # Create scoped params for two different entities with their respective IDs
+      scoped_params =
+        %{}
+        |> MultiDirectLiveView.scope_params_for_schema("users", %{"id" => "user_123"})
+        |> MultiDirectLiveView.scope_params_for_schema("posts", %{"id" => "post_456"})
+
+      {:ok, new_socket} = MultiDirectLiveView.mount(scoped_params, %{}, socket)
+
+      # Both entities should be subscribed with their respective IDs
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "users" => %{
+                   event_params: %{"id" => "user_123"},
+                   subscribed?: %{direct: true, unscoped: false}
+                 },
+                 "posts" => %{
+                   event_params: %{"id" => "post_456"},
+                   subscribed?: %{direct: true, unscoped: false}
+                 }
+               }
+             }
+
+      # Test that each entity receives its own direct messages
+      Utils.PubSub.broadcast(:adapter_name, "users/user_123", :test_users)
+      Utils.PubSub.broadcast(:adapter_name, "posts/post_456", :test_posts)
+      Utils.PubSub.broadcast(:adapter_name, "users/wrong_id", :test_wrong_users)
+      Utils.PubSub.broadcast(:adapter_name, "posts/wrong_id", :test_wrong_posts)
+
+      assert_receive :test_users, 1000
+      assert_receive :test_posts, 1000
+      refute_receive :test_wrong_users, 100
+      refute_receive :test_wrong_posts, 100
+    end
+
+    test "handle_params/3 with scoped params for multiple direct subscriptions", %{socket: socket} do
+      {:ok, new_socket} = MultiDirectLiveView.mount(%{}, %{}, socket)
+
+      # Initially no subscriptions since no IDs were provided
+      assert new_socket.private == %{}
+
+      # Create scoped params for two different entities with their respective IDs
+      scoped_params =
+        %{}
+        |> MultiDirectLiveView.scope_params_for_schema("users", %{"id" => "user_789"})
+        |> MultiDirectLiveView.scope_params_for_schema("posts", %{"id" => "post_101"})
+
+      {:noreply, new_socket} = MultiDirectLiveView.handle_params(scoped_params, %{}, new_socket)
+
+      # Both entities should now be subscribed with their respective IDs
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "users" => %{
+                   event_params: %{"id" => "user_789"},
+                   subscribed?: %{direct: true, unscoped: false}
+                 },
+                 "posts" => %{
+                   event_params: %{"id" => "post_101"},
+                   subscribed?: %{direct: true, unscoped: false}
+                 }
+               }
+             }
+
+      # Test that each entity receives its own direct messages
+      Utils.PubSub.broadcast(:adapter_name, "users/user_789", :test_users)
+      Utils.PubSub.broadcast(:adapter_name, "posts/post_101", :test_posts)
+      Utils.PubSub.broadcast(:adapter_name, "users/user_123", :test_old_users)
+      Utils.PubSub.broadcast(:adapter_name, "posts/post_456", :test_old_posts)
+
+      assert_receive :test_users, 1000
+      assert_receive :test_posts, 1000
+      refute_receive :test_old_users, 100
+      refute_receive :test_old_posts, 100
+    end
+
+    test "mixed scoped and unscoped params", %{socket: socket} do
+      # Test mixing scoped and unscoped parameters
+      mixed_params =
+        %{"global_setting" => "value", "other_param" => "test"}
+        |> MultiDirectLiveView.scope_params_for_schema("users", %{"id" => "user_mixed"})
+        |> MultiDirectLiveView.scope_params_for_schema("posts", %{"id" => "post_mixed"})
+
+      {:ok, new_socket} = MultiDirectLiveView.mount(mixed_params, %{}, socket)
+
+      assert new_socket.private == %{
+               subscriptions: %{
+                 "users" => %{
+                   event_params: %{"id" => "user_mixed"},
+                   subscribed?: %{direct: true, unscoped: false}
+                 },
+                 "posts" => %{
+                   event_params: %{"id" => "post_mixed"},
+                   subscribed?: %{direct: true, unscoped: false}
+                 }
+               }
+             }
+
+      # Test that each entity receives its own direct messages
+      Utils.PubSub.broadcast(:adapter_name, "users/user_mixed", :test_users)
+      Utils.PubSub.broadcast(:adapter_name, "posts/post_mixed", :test_posts)
+
+      assert_receive :test_users, 1000
+      assert_receive :test_posts, 1000
+    end
+  end
 end
