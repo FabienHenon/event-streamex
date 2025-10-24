@@ -188,7 +188,7 @@ defmodule EventStreamex.Orchestrator do
 
   @doc false
   @impl true
-  def handle_info({:nodeup, node}, state) do
+  def handle_info({:nodeup, node}, %__MODULE__{} = state) do
     Logger.debug("Orchestrator - New node connected: #{inspect({node, {node(), Node.list()}})}")
 
     # Sending our node state to the newly connected node
@@ -202,7 +202,7 @@ defmodule EventStreamex.Orchestrator do
 
   @doc false
   @impl true
-  def handle_info({:nodedown, node}, state) do
+  def handle_info({:nodedown, node}, %__MODULE__{} = state) do
     Logger.debug("Orchestrator - Node disconnected: #{inspect({node, {node(), Node.list()}})}")
 
     elect_master()

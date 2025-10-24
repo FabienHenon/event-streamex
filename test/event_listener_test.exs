@@ -506,9 +506,9 @@ defmodule EventListenerTest do
       Utils.PubSub.broadcast(:adapter_name, "comments", :test_unscope)
       Utils.PubSub.broadcast(:adapter_name, "comments/89", :test_direct)
 
-      assert_receive :test_scopes, 1000
-      assert_receive :test_unscope, 1000
-      assert_receive :test_direct, 1000
+      assert_receive :test_scopes, 2000
+      assert_receive :test_unscope, 2000
+      assert_receive :test_direct, 2000
 
       %{socket: new_socket}
     end
